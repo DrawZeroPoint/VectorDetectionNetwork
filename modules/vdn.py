@@ -20,9 +20,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 
-from libs.core.config import config
+import libs.core.config as lib_config
 from libs.core.config import get_model_name
-from libs.core.config import update_config
 
 import libs.core.function as lib_function
 from libs.core.inference import get_final_preds
@@ -31,8 +30,8 @@ import libs.core.loss as lib_loss
 import libs.utils.utils as lib_util
 from libs.utils.transforms import get_affine_transform
 
-import libs.models as models  # DO NOT DELETE THIS!
-import libs.dataset as dataset  # DO NOT DELETE THIS!
+# import libs.models as models  # DO NOT DELETE THIS!
+# import libs.dataset as dataset  # DO NOT DELETE THIS!
 
 import libs.models.vdn_model as vdn_model
 
@@ -53,67 +52,58 @@ class VectorDetectionNetwork:
 
     def __init__(self, train=False):
         vdn_config = os.path.join(root_dir, "cfgs/resnet50/384x384_d256x3_adam_lr1e-3.yaml")
-        update_config(vdn_config)
+        lib_config.update_config(vdn_config)
+
+        cudnn.benchmark = lib_config.config.CUDNN.BENCHMARK
+        torch.backends.cudnn.deterministic = lib_config.config.CUDNN.DETERMINISTIC
+        torch.backends.cudnn.enabled = lib_config.config.CUDNN.ENABLED
 
         if not train:
-            cudnn.benchmark = config.CUDNN.BENCHMARK
-            torch.backends.cudnn.deterministic = config.CUDNN.DETERMINISTIC
-            torch.backends.cudnn.enabled = config.CUDNN.ENABLED
-
-            model = vdn_model.get_network_model(config, is_train=False)
-            model.load_state_dict(
-                {k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
-            gpus = [int(i) for i in config.GPUS.split(',')]
-            self.model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+            model = vdn_model.get_network_model(lib_config.config, is_train=False)
+            model.load_state_dict({k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
         else:
-            pass
+            model = vdn_model.get_network_model(lib_config.config, is_train=True)
 
-    @staticmethod
-    def train(cfg_name):
+        self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
+        self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
+
+    def train(self):
         """
         """
-        logger, final_output_dir, tb_log_dir = lib_util.create_logger(config, cfg_name, 'train')
-        logger.info(pprint.pformat(config))
+        cfgs = lib_config.config
 
-        # cudnn related setting
-        cudnn.benchmark = config.CUDNN.BENCHMARK
-        torch.backends.cudnn.deterministic = config.CUDNN.DETERMINISTIC
-        torch.backends.cudnn.enabled = config.CUDNN.ENABLED
-
-        model = vdn_model.get_network_model(config, is_train=True)
+        logger, final_output_dir, tb_log_dir = lib_util.create_logger(cfgs, 'train')
+        logger.info(pprint.pformat(cfgs))
 
         # copy model file for reference
         this_dir = os.path.dirname(__file__)
-        shutil.copy2(os.path.join(this_dir, '../libs/models', config.MODEL.NAME + '.py'), final_output_dir)
-
-        gpus = [int(i) for i in config.GPUS.split(',')]
-        model = torch.nn.DataParallel(model, device_ids=gpus).cuda()
+        shutil.copy2(os.path.join(this_dir, '../libs/models', cfgs.MODEL.NAME + '.py'), final_output_dir)
 
         # define loss function (criterion) and optimizer
-        criterion = lib_loss.JointsMSELoss(use_target_weight=config.LOSS.USE_TARGET_WEIGHT).cuda()
+        criterion = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
 
-        optimizer = lib_util.get_optimizer(config, model)
+        optimizer = lib_util.get_optimizer(cfgs, self.model)
 
         lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer, config.TRAIN.LR_STEP, config.TRAIN.LR_FACTOR
+            optimizer, cfgs.TRAIN.LR_STEP, cfgs.TRAIN.LR_FACTOR
         )
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
 
-        train_dataset = eval('dataset.' + config.DATASET.DATASET)(
-            config,
-            config.DATASET.ROOT,
-            config.DATASET.TRAIN_SET,
+        train_dataset = eval('dataset.' + cfgs.DATASET.DATASET)(
+            cfgs,
+            cfgs.DATASET.ROOT,
+            cfgs.DATASET.TRAIN_SET,
             True,
             transform=transforms.Compose([
                 transforms.ToTensor(),
                 normalize, ])
         )
-        valid_dataset = eval('dataset.' + config.DATASET.DATASET)(
-            config,
-            config.DATASET.ROOT,
-            config.DATASET.TEST_SET,
+        valid_dataset = eval('dataset.' + cfgs.DATASET.DATASET)(
+            cfgs,
+            cfgs.DATASET.ROOT,
+            cfgs.DATASET.TEST_SET,
             False,
             transforms.Compose([
                 transforms.ToTensor(),
@@ -122,31 +112,31 @@ class VectorDetectionNetwork:
         )
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=config.TRAIN.BATCH_SIZE * len(gpus),
-            shuffle=config.TRAIN.SHUFFLE,
-            num_workers=config.WORKERS,
+            batch_size=cfgs.TRAIN.BATCH_SIZE * len(self.gpus),
+            shuffle=cfgs.TRAIN.SHUFFLE,
+            num_workers=cfgs.WORKERS,
             pin_memory=True,
 
         )
         valid_loader = torch.utils.data.DataLoader(
             valid_dataset,
-            batch_size=config.TEST.BATCH_SIZE * len(gpus),
+            batch_size=cfgs.TEST.BATCH_SIZE * len(self.gpus),
             shuffle=False,
-            num_workers=config.WORKERS,
+            num_workers=cfgs.WORKERS,
             pin_memory=True
         )
 
         best_perf = 0.0
-        for epoch in range(config.TRAIN.BEGIN_EPOCH, config.TRAIN.END_EPOCH):
+        for epoch in range(cfgs.TRAIN.BEGIN_EPOCH, cfgs.TRAIN.END_EPOCH):
             # train for one epoch
-            lib_function.train(config, train_loader, model, criterion, optimizer, epoch,
+            lib_function.train(cfgs, train_loader, self.model, criterion, optimizer, epoch,
                                final_output_dir, tb_log_dir)
 
             #  In PyTorch 1.1.0 and later, you should call optimizer.step() before lr_scheduler.step().
             lr_scheduler.step()
 
             # evaluate on validation set
-            perf_indicator = lib_function.validate(config, valid_loader, valid_dataset, model,
+            perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
                                                    criterion, final_output_dir, tb_log_dir)
 
             if perf_indicator > best_perf:
@@ -158,53 +148,57 @@ class VectorDetectionNetwork:
             logger.info('=> saving checkpoint to {}'.format(final_output_dir))
             lib_util.save_checkpoint({
                 'epoch': epoch + 1,
-                'model': get_model_name(config),
-                'state_dict': model.state_dict(),
+                'model': get_model_name(cfgs),
+                'state_dict': self.model.state_dict(),
                 'perf': perf_indicator,
                 'optimizer': optimizer.state_dict(),
             }, best_model, final_output_dir)
 
         final_model_state_file = os.path.join(final_output_dir, 'final_state.pth.tar')
         logger.info('saving final model state to {}'.format(final_model_state_file))
-        torch.save(model.module.state_dict(), final_model_state_file)
+        torch.save(self.model.module.state_dict(), final_model_state_file)
 
     # @torchsnooper.snoop()
     def get_vectors(self, roi_image, verbose=False):
-        """Given ROI image roi_image in ndarray format, return vectors represented by 2 points [[[ps_x, ps_y], [pe_x, pe_y]], ...]
-           Here ps is for start point, and pe is for end point.
+        """Given ROI image roi_image in ndarray format, return vectors represented by 2 points [[[ps_x, ps_y],
+        [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
 
         :param roi_image: 
         :param verbose: 
         :return:
         """
         model = self.model
+        cfgs = lib_config.config
 
         image_height = roi_image.shape[0]
         image_width = roi_image.shape[1]
         
         center = np.array([image_width * 0.5, image_height * 0.5], dtype=np.float32)
-        shape = np.array([image_width / 160.0, image_height / 160.0], dtype=np.float32)  # TODO: use multiple scale factor like 16 on image dims
-        rotation = 0
-        trans = get_affine_transform(center, shape, rotation, config.MODEL.IMAGE_SIZE)
 
-        input = cv2.warpAffine(roi_image, trans,
-                               (int(config.MODEL.IMAGE_SIZE[0]), int(config.MODEL.IMAGE_SIZE[1])),
+        # TODO: use multiple scale factor like 16 on image dims
+        shape = np.array([image_width / 160.0, image_height / 160.0], dtype=np.float32)
+        rotation = 0
+        trans = get_affine_transform(center, shape, rotation, cfgs.MODEL.IMAGE_SIZE)
+
+        net_input = cv2.warpAffine(roi_image, trans,
+                               (int(cfgs.MODEL.IMAGE_SIZE[0]), int(cfgs.MODEL.IMAGE_SIZE[1])),
                                flags=cv2.INTER_LINEAR)
-        # cv2.imwrite(os.path.join(root_dir, "data/results/warped.jpg"), input)
+        # cv2.imwrite(os.path.join(root_dir, "data/results/warped.jpg"), net_input)
 
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                              std=[0.229, 0.224, 0.225]),
                                         ])
 
-        input = transform(input).unsqueeze(0)
+        net_input = transform(net_input).unsqueeze(0)
         # switch to evaluate mode
         model.eval()
 
         with torch.no_grad():
             # compute output heat map
-            output = model(input)
-            preds, maxvals = get_final_preds(config, output.clone().cpu().numpy(), np.asarray([center]), np.asarray([shape]))
+            output = model(net_input)
+            preds, maxvals = get_final_preds(cfgs, output.clone().cpu().numpy(),
+                                             np.asarray([center]), np.asarray([shape]))
             print("points", preds[0], "\n", "score", maxvals)
 
             if verbose:
@@ -215,6 +209,6 @@ class VectorDetectionNetwork:
                 output_image = vis_util.pil_img_to_cv(roi_pil)
                 cv2.imwrite(os.path.join(root_dir, "data/results/output.jpg"), output_image)
 
-                vis_util.save_batch_heatmaps(input, output, os.path.join(root_dir, "data/results/hmap.jpg"))
+                vis_util.save_batch_heatmaps(net_input, output, os.path.join(root_dir, "data/results/hmap.jpg"))
 
             return preds[0], maxvals[0]

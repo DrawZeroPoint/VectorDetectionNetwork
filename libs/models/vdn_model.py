@@ -92,11 +92,11 @@ class Bottleneck(nn.Module):
         return out
 
 
-class Bottleneck_CAFFE(nn.Module):
+class BottleneckCAFFE(nn.Module):
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck_CAFFE, self).__init__()
+        super(BottleneckCAFFE, self).__init__()
         # add stride to conv1x1
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False)
         self.bn1 = nn.BatchNorm2d(planes, momentum=BN_MOMENTUM)
@@ -142,8 +142,7 @@ class VDNResNet(nn.Module):
         self.deconv_with_bias = extra.DECONV_WITH_BIAS
 
         super(VDNResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -306,7 +305,7 @@ def get_network_model(cfg, is_train, **kwargs):
     block_class, layers = resnet_spec[num_layers]
 
     if style == 'caffe':
-        block_class = Bottleneck_CAFFE
+        block_class = BottleneckCAFFE
 
     model = VDNResNet(block_class, layers, cfg, **kwargs)
 

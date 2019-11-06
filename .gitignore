@@ -103,6 +103,8 @@ ENV/
 .idea
 
 data/*.txt
+data/results
+data/test
 
 *.pth.tar
 *.pth

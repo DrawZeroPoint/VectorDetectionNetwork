@@ -12,18 +12,15 @@ import torch.optim as optim
 from libs.core.config import get_model_name
 
 
-def create_logger(cfg, cfg_name, phase='train'):
+def create_logger(cfg, phase='train'):
     root_output_dir = Path(cfg.OUTPUT_DIR)
     # set up logger
     if not root_output_dir.exists():
-        print('=> creating {}'.format(root_output_dir))
+        print('=> creating root output dir {}'.format(root_output_dir))
         root_output_dir.mkdir()
 
-    dataset = cfg.DATASET.DATASET + '_' + cfg.DATASET.HYBRID_JOINTS_TYPE \
-        if cfg.DATASET.HYBRID_JOINTS_TYPE else cfg.DATASET.DATASET
-    dataset = dataset.replace(':', '_')
     model, _ = get_model_name(cfg)
-    cfg_name = os.path.basename(cfg_name).split('.')[0]
+    cfg_name = 'vdn_model'
 
     final_output_dir = root_output_dir
 
@@ -34,15 +31,15 @@ def create_logger(cfg, cfg_name, phase='train'):
     log_file = '{}_{}_{}.log'.format(cfg_name, time_str, phase)
     final_log_file = final_output_dir / log_file
     head = '%(asctime)-15s %(message)s'
-    logging.basicConfig(filename=str(final_log_file),
-                        format=head)
+
+    logging.basicConfig(filename=str(final_log_file), format=head)
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     console = logging.StreamHandler()
     logging.getLogger('').addHandler(console)
 
-    tensorboard_log_dir = Path(cfg.LOG_DIR) / (cfg_name + '_' + time_str)
-    print('=> creating {}'.format(tensorboard_log_dir))
+    tensorboard_log_dir = Path(cfg.LOG_DIR) / (''.join((cfg_name, '_', time_str)))
+    print('=> creating tensor board log dir {}'.format(tensorboard_log_dir))
     tensorboard_log_dir.mkdir(parents=True, exist_ok=True)
 
     return logger, str(final_output_dir), str(tensorboard_log_dir)
