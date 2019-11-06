@@ -1,31 +1,29 @@
 GPUS: '0'
-DATA_DIR: ''
-OUTPUT_DIR: 'output'
-LOG_DIR: 'log'
+OUTPUT_DIR: '/VDN/weights/output'
+LOG_DIR: '/VDN/logs'
 WORKERS: 4
-PRINT_FREQ: 1
 
 DATASET:
   DATASET: 'coco'
-  ROOT: '/home/kilox/KiloX/keypoints/data/coco/'
-  TEST_SET: 'val2017'
-  TRAIN_SET: 'train2017'
-  FLIP: true
-  ROT_FACTOR: 40
-  SCALE_FACTOR: 0.3
+  ROOT: '/Database/Done/0_meter_recognition/pointer_dataset/'
+  TRAIN_SET: 'train_pointer'
+  TEST_SET: 'val_pointer'
+  FLIP: false
+  ROT_FACTOR: 90
+  SCALE_FACTOR: 0.02
 MODEL:
-  NAME: 'pose_resnet'
-  PRETRAINED: '/home/kilox/KiloX/keypoints/models/pytorch/imagenet/resnet50-19c8e357.pth'
+  NAME: 'vdn_res2net'  # This should be the same name of the file in /VDN/libs/models
+  PRETRAINED: '/VDN/weights/pretrained/res2net50_26w_6s-19041792.pth'
   IMAGE_SIZE:
-  - 192
-  - 256
-  NUM_JOINTS: 5 
+  - 384  # width
+  - 384  # height
+  NUM_JOINTS: 5
   EXTRA:
     TARGET_TYPE: 'gaussian'
     HEATMAP_SIZE:
-    - 48
-    - 64
-    SIGMA: 2
+    - 96
+    - 96
+    SIGMA: 3
     FINAL_CONV_KERNEL: 1
     DECONV_WITH_BIAS: false
     NUM_DECONV_LAYERS: 3
@@ -41,17 +39,17 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE: 2 
+  BATCH_SIZE: 2
   SHUFFLE: true
   BEGIN_EPOCH: 0
-  END_EPOCH: 140
+  END_EPOCH: 160
   RESUME: false
   OPTIMIZER: 'adam'
   LR: 0.001
   LR_FACTOR: 0.1
   LR_STEP:
   - 90
-  - 120 
+  - 120
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.0
@@ -59,7 +57,7 @@ TRAIN:
   NESTEROV: false
 TEST:
   BATCH_SIZE: 2
-  COCO_BBOX_FILE: 'data/coco/person_detection_results/COCO_val2017_detections_AP_H_56_person.json'
+  COCO_BBOX_FILE:
   BBOX_THRE: 1.0
   FLIP_TEST: false
   IMAGE_THRE: 0.0

@@ -12,7 +12,7 @@ DATASET:
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
-  NAME: 'vdn_model'  # This should be the same name of the file in /VDN/libs/models
+  NAME: 'vdn_resnet'  # This should be the same name of the file in /VDN/libs/models
   PRETRAINED: '/VDN/weights/pretrained/pretrained.pth.tar'
   IMAGE_SIZE:
   - 384  # width
