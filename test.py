@@ -14,9 +14,9 @@ import libs.core.inference as lib_inference
 class Test(unittest.TestCase):
 
     def test_get_all_preds(self):
-        batch_heatmaps = np.load("/VDN/data/test.npy")
-        vis_util.save_np_heatmaps(batch_heatmaps, "/VDN/data/test_heatmap_max.jpg", is_max=True)
-        vis_util.save_np_heatmaps(batch_heatmaps, "/VDN/data/test_heatmap_all.jpg", is_max=False)
+        batch_heatmaps = np.load("/VDN/data/test/test.npy")
+        vis_util.save_np_heatmaps(batch_heatmaps, "/VDN/data/test/test_heatmap_max.jpg", is_max=True)
+        vis_util.save_np_heatmaps(batch_heatmaps, "/VDN/data/test/test_heatmap_all.jpg", is_max=False)
         # lib_inference.get_all_preds(batch_heatmaps)
 
     # def test_port_port(self):

@@ -137,7 +137,7 @@ def save_np_heatmaps(batch_heatmaps, file_name, is_max=True):
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
 
-    grid_image = np.zeros((batch_size * heatmap_height, (num_joints) * heatmap_width, 3), dtype=np.uint8)
+    grid_image = np.zeros((batch_size * heatmap_height, num_joints * heatmap_width, 3), dtype=np.uint8)
 
     if is_max:
         preds, maxvals = lib_inference.get_max_preds(batch_heatmaps)
@@ -145,27 +145,40 @@ def save_np_heatmaps(batch_heatmaps, file_name, is_max=True):
         preds, maxvals = lib_inference.get_all_preds(batch_heatmaps)
 
     for i in range(batch_size):
-        heatmaps = np.clip(batch_heatmaps[i] * 255, 0 ,255)
+        heatmaps = np.clip(batch_heatmaps[i] * 255, 0, 255)
 
         height_begin = heatmap_height * i
         height_end = heatmap_height * (i + 1)
         for j in range(num_joints):
             heatmap = heatmaps[j, :, :].astype(np.uint8)
             colored_heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-            masked_image = colored_heatmap
+
+            if is_max:
+                p = preds[i][j]
+                # print(f'preds max {i}, {j}: {p}')
+                cv2.circle(colored_heatmap, (int(p[0]), int(p[1])), 1, [0, 255, 0], 1)
+            else:
+                for p in preds[i][j]:
+                    # print(f'preds all {i}, {j}: {p}')
+                    cv2.circle(colored_heatmap, (int(p[0]), int(p[1])), 1, [0, 255, 0], 1)
+
             width_begin = heatmap_width * j
             width_end = heatmap_width * (j + 1)
-            grid_image[height_begin:height_end, width_begin:width_end, :] = masked_image
+            grid_image[height_begin:height_end, width_begin:width_end, :] = colored_heatmap
 
     cv2.imwrite(file_name, grid_image)
 
 
 def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, ratio=0.5):
-    '''
-    batch_image: [batch_size, channel, height, width]
-    batch_heatmaps: ['batch_size, num_joints, height, width]
-    file_name: saved file name
-    '''
+    """
+
+    :param batch_image: [batch_size, channel, height, width]
+    :param batch_heatmaps: ['batch_size, num_joints, height, width]
+    :param file_name: saved file name
+    :param normalize:
+    :param ratio:
+    :return:
+    """
     if normalize:
         batch_image = batch_image.clone()
         min = float(batch_image.min())

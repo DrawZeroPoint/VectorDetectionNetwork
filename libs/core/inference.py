@@ -13,50 +13,52 @@ from libs.utils.transforms import transform_preds
 
 # @torchsnooper.snoop()
 def get_all_preds(batch_heatmaps):
-    """Get predictions (n, c, 2), 2 for (row, col), from model output
+    """Get predictions (n, c, 2), 2 for (x, y), from model output
 
     :param batch_heatmaps: numpy.ndarray([batch_size, num_joints, height, width])
     """
     assert isinstance(batch_heatmaps, np.ndarray), 'batch_heatmaps should be numpy.ndarray'
-    assert batch_heatmaps.ndim == 4, 'batch_images should be 4-ndim'
+    assert batch_heatmaps.ndim == 4, 'batch_images should be 4-dim'
 
     batch_size = batch_heatmaps.shape[0]  # 2
     num_joints = batch_heatmaps.shape[1]  # 5
-    height = batch_heatmaps.shape[2]
-    width = batch_heatmaps.shape[3]  # input_width / 4
 
-    preds = None
-    maxvals = None
+    preds = []
+    maxvals = []
     for n in range(batch_size):
-        joints_peak_maps = None
-        joints_val_maps = None
-        for c in range(num_joints):
-            heatmap = batch_heatmaps[n, c, :]
+        joints_peaks = []
+        joints_maxvals = []
+        for j in range(num_joints):
+            heatmap = batch_heatmaps[n, j, :]
             bw = heatmap
             bw[bw < 0.6] = 0
             labeled_bw, _ = label(bw)
             cc = regionprops(labeled_bw)
-            peaks = np.array([c.centroid for c in cc])
-            row = int(peaks[:, 0])
-            col = np.floor(peaks[:, 1]).astype(np.uint16)
-            peak_vals = heatmap[row, col]
-            # print(f'c {c}, peaks {peaks}, {row}, {col} peak_vals {peak_vals[0]}')
 
-            if joints_peak_maps is None:
-                joints_peak_maps = peaks
-                joints_val_maps = peak_vals
-            else:
-                joints_peak_maps = np.concatenate((joints_peak_maps, peaks))
-                joints_val_maps = np.concatenate((joints_val_maps, peak_vals))
+            peaks_in_one_map = []
+            peak_vals_in_one = []
+            cnt = 0
+            for k, c in enumerate(cc):
+                centroid = c.centroid  # tuple
+                row = int(centroid[0] + 0.5)
+                col = int(centroid[1] + 0.5)
+                peak = [col, row]
+                peaks_in_one_map.append(peak)
+                peak_val = heatmap[row, col]
+                peak_vals_in_one.append(peak_val)
+                cnt = k + 1
 
-        if preds is None:
-            preds = np.expand_dims(joints_peak_maps, axis=0)
-            maxvals = np.expand_dims(joints_val_maps, axis=0)
-        else:
-            preds = np.concatenate((preds, np.expand_dims(joints_peak_maps, axis=0)))
-            maxvals = np.concatenate((maxvals, np.expand_dims(joints_val_maps, axis=0)))
+            peaks = np.array(peaks_in_one_map)
+            peakvals = np.array(peak_vals_in_one)
+            print(f'Found {cnt} contours in batch {n}, joint {j}; peaks {peaks}, peak_vals {peakvals}')
 
-    return preds, maxvals
+            joints_peaks.append(peaks)
+            joints_maxvals.append(peakvals)
+
+        preds.append(joints_peaks)
+        maxvals.append(joints_maxvals)
+
+    return np.array(preds), np.array(maxvals)
 
 
 def get_max_preds(batch_heatmaps):
