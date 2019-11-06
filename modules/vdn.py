@@ -33,7 +33,7 @@ from libs.utils.transforms import get_affine_transform
 import libs.dataset as lib_dataset
 
 import libs.models.vdn_resnet as vdn_resnet
-import libs.models.vdn_res2net as vdn_res2net
+# import libs.models.vdn_res2net as vdn_res2net
 
 import utils.vis.util as vis_util
 from PIL import ImageDraw
@@ -51,7 +51,7 @@ class VectorDetectionNetwork:
     """
 
     def __init__(self, train=False):
-        vdn_config = os.path.join(root_dir, "cfgs/res2net50/384x384_d256x3_adam_lr1e-3.yaml")
+        vdn_config = os.path.join(root_dir, "cfgs/resnet50/384x384_d256x3_adam_lr1e-3.yaml")
         lib_config.update_config(vdn_config)
 
         cudnn.benchmark = lib_config.config.CUDNN.BENCHMARK
@@ -62,8 +62,7 @@ class VectorDetectionNetwork:
             model = vdn_resnet.get_vdn_resnet(lib_config.config, is_train=False)
             model.load_state_dict({k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
         else:
-            # model = vdn_resnet.get_vdn_resnet(lib_config.config, is_train=True)
-            model = vdn_res2net.get_vdn_res2net(lib_config.config, is_train=True)
+            model = vdn_resnet.get_vdn_resnet(lib_config.config, is_train=True)
 
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
@@ -184,7 +183,6 @@ class VectorDetectionNetwork:
         net_input = cv2.warpAffine(roi_image, trans,
                                (int(cfgs.MODEL.IMAGE_SIZE[0]), int(cfgs.MODEL.IMAGE_SIZE[1])),
                                flags=cv2.INTER_LINEAR)
-        # cv2.imwrite(os.path.join(root_dir, "data/results/warped.jpg"), net_input)
 
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],

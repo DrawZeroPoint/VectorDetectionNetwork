@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import libs.core.inference as lib_inference
 
 from PIL import ImageFont, Image
-from libs.core.inference import get_max_preds
 from torchvision import datasets, models, transforms
+
 
 STANDARD_COLORS = [
     'Aqua', 'Chartreuse', 'Aquamarine', 'Chocolate', 'Coral', 'CornflowerBlue',
@@ -45,33 +45,6 @@ STANDARD_COLORS = [
 NUM_COLORS = len(STANDARD_COLORS)
 
 
-def visualize_classification(model, num_images=6):
-    was_training = model.training
-    model.eval()
-    images_so_far = 0
-    fig = plt.figure()
-
-    with torch.no_grad():
-        for i, (inputs, labels) in enumerate(dataloaders['val']):
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            outputs = model(inputs)
-            _, preds = torch.max(outputs, 1)
-
-            for j in range(inputs.size()[0]):
-                images_so_far += 1
-                ax = plt.subplot(num_images // 2, 2, images_so_far)
-                ax.axis('off')
-                ax.set_title('predicted: {}'.format(class_names[preds[j]]))
-                show_tensor_data(inputs.cpu().data[j])
-
-                if images_so_far == num_images:
-                    model.train(mode=was_training)
-                    return
-        model.train(mode=was_training)
-
-
 def show_tensor_data(inputs, title=None):
     """Imshow for Tensor.
         Use:
@@ -92,15 +65,15 @@ def show_tensor_data(inputs, title=None):
 
 
 def print_info(content):
-    print(''.join(['\033[1m\033[94m[LingXi]: ', content, '\033[0m']))
+    print(''.join(['\033[1m\033[94m[]: ', content, '\033[0m']))
 
 
 def print_warn(content):
-    print(''.join(['\033[1m\033[93m[LingXi]: ', content, '\033[0m']))
+    print(''.join(['\033[1m\033[93m[]: ', content, '\033[0m']))
 
 
 def print_error(content):
-    print(''.join(['\033[1m\033[91m[LingXi]: ', content, '\033[0m']))
+    print(''.join(['\033[1m\033[91m[]: ', content, '\033[0m']))
 
 
 def print_sys_info():
@@ -171,7 +144,6 @@ def save_np_heatmaps(batch_heatmaps, file_name, is_max=True):
 
 def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, ratio=0.5):
     """
-
     :param batch_image: [batch_size, channel, height, width]
     :param batch_heatmaps: ['batch_size, num_joints, height, width]
     :param file_name: saved file name
@@ -194,7 +166,7 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
     grid_image = np.zeros((batch_size * heatmap_height, (num_joints + 1) * heatmap_width, 3),
                           dtype=np.uint8)
 
-    preds, maxvals = get_max_preds(batch_heatmaps.detach().cpu().numpy())
+    preds, maxvals = lib_inference.get_all_preds(batch_heatmaps.detach().cpu().numpy())
 
     for i in range(batch_size):
         image = batch_image[i].mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
@@ -205,12 +177,11 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
         height_begin = heatmap_height * i
         height_end = heatmap_height * (i + 1)
         for j in range(num_joints):
-            # cv2.circle(resized_image, (int(preds[i][j][0]), int(preds[i][j][1])), 1, [0, 0, 255], 1)
+            cv2.circle(resized_image, (int(preds[i][j][0]), int(preds[i][j][1])), 1, [0, 0, 255], 1)
             heatmap = heatmaps[j, :, :]
             colored_heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
-            masked_image = colored_heatmap * (1.0 - ratio) + resized_image * ratio
 
-            # cv2.circle(masked_image, (int(preds[i][j][0]), int(preds[i][j][1])), 1, [0, 0, 255], 1)
+            masked_image = colored_heatmap * (1.0 - ratio) + resized_image * ratio
 
             width_begin = heatmap_width * (j + 1)
             width_end = heatmap_width * (j + 2)
@@ -231,99 +202,13 @@ def apply_dot(draw, xy, w, h, idx=0):
 
 
 def apply_line(draw, line, w, h, idx=0):
-    """在PIL画板上绘制线段
-
+    """
     :param draw: PIL Draw
     :param line: list -> [x, y, x, y]
-    :param w: int 图像宽度
-    :param h: int 图像高度
-    :param idx: int 标签序号, 决定线条颜色
+    :param w: int
+    :param h: int
+    :param idx: int
     """
     color = STANDARD_COLORS[idx % NUM_COLORS]
     draw.line(line, width=int(min(w, h) * 0.01), fill=color)
 
-
-def apply_frame(draw, bbox, w, h, idx=0):
-    """在PIL画板上绘制矩形框
-
-    :param draw: PIL Draw
-    :param bbox: list -> int 矩形框 (x_lt, y_lt, x_rb, y_rb)
-    :param w: int 图像宽度
-    :param h: int 图像高度
-    :param idx: int 标签序号, 决定矩形框颜色, 默认为0
-    """
-    left, top, right, bottom = bbox[0], bbox[1], bbox[2], bbox[3]
-    color = STANDARD_COLORS[idx % NUM_COLORS]
-    draw.line([(left, top), (left, bottom), (right, bottom), (right, top), (left, top)],
-              width=int(min(w, h) * 0.01), fill=color)
-
-
-def apply_text(draw, pt, text, w, h, idx=0, smart_offset=True, bg = False):
-    """在PIL画板上绘制文字
-
-    :param draw: PIL Draw
-    :param pt: List -> Int 绘制参考点[x, y], 为文字左下角点
-    :param text: String 需要添加的文字
-    :param w: Int 图像宽度
-    :param h: Int 图像高度
-    :param idx: int 标签序号, 决定文字颜色
-    :param smart_offset: 当文字超出图像范围时智能移位
-    """
-    min_dim = min(w, h)
-    font_sz = int(min_dim * 0.08)
-    offset_x = int(w * 0.02)
-    offset_y = int(h * 0.02)+0.1
-    bg_w = math.ceil(font_sz * 3)
-    bg_h = math.ceil(font_sz * 1.2)
-    font = ImageFont.truetype("/LingXi/fonts/NotoSansCJKsc-Regular.otf", font_sz)
-    color = STANDARD_COLORS[idx]
-    color_b = STANDARD_COLORS[81]
-    # 绘制文字背景
-    if smart_offset:
-        if pt[0] + offset_x + bg_w > w:
-            offset_x = -(bg_w + offset_x)
-        if pt[1] + offset_y + font_sz > h:
-            offset_y = -(font_sz + offset_y)
-    if bg:
-        draw.rectangle(((pt[0] + offset_x, pt[1] + offset_y),
-                        (pt[0] + offset_x + bg_w, pt[1] + offset_y + bg_h)), fill=color_b)
-    # 绘制文字
-    draw.text((pt[0] + offset_x, pt[1] + offset_y - offset_y / abs(offset_y) * 2),
-              text, font=font, fill=color)
-
-
-def apply_cross(draw, pt, length=10, color=(255, 255, 255)):
-    """在PIL画板上绘制十字
-
-    :param draw: PIL.Draw
-    :param pt: List [x, y] Cross center point
-    :param length: 十字半边臂长
-    :param color: Tuple Color of the cross
-    """
-    draw.line((pt[0] - length, pt[1], pt[0] + length + 1, pt[1]), color, width=2)
-    draw.line((pt[0], pt[1] - length, pt[0], pt[1] + length + 1), color, width=2)
-
-
-def concat_image_list(image_list, one_row=True):
-    """将图像列表中的图像按行或列拼接为单一图像返回
-
-    :param image_list: list -> ndarray -> BGR 图像列表
-    :param one_row: bool 若为真则将图像拼接为一行, 否则为一列
-    :return: ok, concat_image
-    """
-    if not image_list:
-        return None
-
-    row_sep = (np.ones((10, 400, 3)) * 255).astype(np.uint8)
-    col_sep = (np.ones((400, 10, 3)) * 255).astype(np.uint8)
-
-    for i, img in enumerate(image_list):
-        img_r = cv2.resize(img, (400, 400))
-        if i == 0:
-            concat_image = img_r
-        else:
-            if one_row:
-                concat_image = np.concatenate([concat_image, col_sep, img_r], axis=1)
-            else:
-                concat_image = np.concatenate([concat_image, row_sep, img_r], axis=0)
-    return concat_image

@@ -36,7 +36,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
         # compute output
         output = model(input)
 
-        # Set non_blocking=True is the standard opreation before BP
+        # Set non_blocking=True is the standard operation before BP
         target = target.cuda(non_blocking=True)
         target_weight = target_weight.cuda(non_blocking=True)
 
@@ -80,8 +80,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
             save_debug_images(config, input, meta, target, pred*4, output, prefix)
 
 
-def validate(config, val_loader, val_dataset, model, criterion, output_dir,
-             tb_log_dir):
+def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_log_dir):
     writer_dict = None
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -211,8 +210,7 @@ def _print_name_value(name_value, full_arch_name):
     logger.info('|---' * (num_values+1) + '|')
     logger.info(
         '| ' + full_arch_name + ' ' +
-        ' '.join(['| {:.3f}'.format(value) for value in values]) +
-         ' |'
+        ' '.join(['| {:.3f}'.format(value) for value in values]) + ' |'
     )
 
 

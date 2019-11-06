@@ -91,7 +91,8 @@ def get_max_preds(batch_heatmaps):
 
 
 def get_final_preds(config, batch_heatmaps, center, scale):
-    coords, maxvals = get_max_preds(batch_heatmaps)
+    # coords, maxvals = get_max_preds(batch_heatmaps)
+    coords, maxvals = get_all_preds(batch_heatmaps)
 
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
