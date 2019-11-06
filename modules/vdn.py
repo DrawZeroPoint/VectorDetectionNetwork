@@ -30,8 +30,7 @@ import libs.core.loss as lib_loss
 import libs.utils.utils as lib_util
 from libs.utils.transforms import get_affine_transform
 
-# import libs.models as models  # DO NOT DELETE THIS!
-# import libs.dataset as dataset  # DO NOT DELETE THIS!
+import libs.dataset as lib_dataset
 
 import libs.models.vdn_model as vdn_model
 
@@ -91,7 +90,7 @@ class VectorDetectionNetwork:
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
 
-        train_dataset = eval('dataset.' + cfgs.DATASET.DATASET)(
+        train_dataset = lib_dataset.CoCo(
             cfgs,
             cfgs.DATASET.ROOT,
             cfgs.DATASET.TRAIN_SET,
@@ -100,7 +99,7 @@ class VectorDetectionNetwork:
                 transforms.ToTensor(),
                 normalize, ])
         )
-        valid_dataset = eval('dataset.' + cfgs.DATASET.DATASET)(
+        valid_dataset = lib_dataset.CoCo(
             cfgs,
             cfgs.DATASET.ROOT,
             cfgs.DATASET.TEST_SET,

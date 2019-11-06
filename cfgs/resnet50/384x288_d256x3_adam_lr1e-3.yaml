@@ -5,7 +5,7 @@ WORKERS: 4
 
 DATASET:
   DATASET: 'coco'
-  ROOT: '/Database/Done/0_meter_recognition/pointer_data/'
+  ROOT: '/Database/Done/0_meter_recognition/pointer_dataset/'
   TRAIN_SET: 'train_pointer'
   TEST_SET: 'val_pointer'
   FLIP: false

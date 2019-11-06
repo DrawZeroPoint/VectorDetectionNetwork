@@ -15,8 +15,8 @@ class Test(unittest.TestCase):
     def test_train(self):
         """
         """
-        vdn_instance = vdn.VectorDetectionNetwork()
-        vdn_instance.train('vdn_model')
+        vdn_instance = vdn.VectorDetectionNetwork(train=True)
+        vdn_instance.train()
 
 
 if __name__ == '__main__':
