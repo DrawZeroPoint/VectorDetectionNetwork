@@ -177,7 +177,10 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
         height_begin = heatmap_height * i
         height_end = heatmap_height * (i + 1)
         for j in range(num_joints):
-            cv2.circle(resized_image, (int(preds[i][j][0]), int(preds[i][j][1])), 1, [0, 0, 255], 1)
+            point_list = preds[i][j]
+            for point in point_list:
+                cv2.circle(resized_image, (point[0], point[1]), 1, [0, 0, 255], 1)
+
             heatmap = heatmaps[j, :, :]
             colored_heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
@@ -192,13 +195,17 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
     cv2.imwrite(file_name, grid_image)
 
 
-def apply_dot(draw, xy, w, h, idx=0):
+def apply_dot(draw, xy_list, w, h, idx=0):
     """
     """
     color = STANDARD_COLORS[idx % NUM_COLORS]
     d = int(min(w, h) * 0.02)
-    ellipse_bbox = [xy[0] - d, xy[1] - d, xy[0] + d, xy[1] + d]
-    draw.ellipse(ellipse_bbox, fill=color)
+
+    for xy in xy_list:
+        x = xy[0]
+        y = xy[1]
+        ellipse_bbox = [x - d, y - d, x + d, y + d]
+        draw.ellipse(ellipse_bbox, fill=color)
 
 
 def apply_line(draw, line, w, h, idx=0):

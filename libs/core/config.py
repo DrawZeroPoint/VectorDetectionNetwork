@@ -7,7 +7,6 @@ import yaml
 import numpy as np
 from easydict import EasyDict as edict
 
-
 config = edict()
 config.OUTPUT_DIR = ''
 config.LOG_DIR = ''
@@ -43,7 +42,7 @@ config.MODEL = edict()
 config.MODEL.NAME = 'pose_resnet'
 config.MODEL.INIT_WEIGHTS = True
 config.MODEL.PRETRAINED = ''
-config.MODEL.NUM_JOINTS = 5 
+config.MODEL.NUM_JOINTS = 5
 config.MODEL.IMAGE_SIZE = [256, 256]
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 config.MODEL.STYLE = 'pytorch'
@@ -174,26 +173,24 @@ def update_dir(model_dir, log_dir, data_dir):
         config.DATA_DIR = data_dir
 
     config.DATASET.ROOT = os.path.join(
-            config.DATA_DIR, config.DATASET.ROOT)
+        config.DATA_DIR, config.DATASET.ROOT)
 
     config.TEST.COCO_BBOX_FILE = os.path.join(
-            config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
+        config.DATA_DIR, config.TEST.COCO_BBOX_FILE)
 
     config.MODEL.PRETRAINED = os.path.join(
-            config.DATA_DIR, config.MODEL.PRETRAINED)
+        config.DATA_DIR, config.MODEL.PRETRAINED)
 
 
 def get_model_name(cfg):
     name = cfg.MODEL.NAME
-    full_name = cfg.MODEL.NAME
     extra = cfg.MODEL.EXTRA
 
     name = '{model}_{num_layers}'.format(
         model=name,
         num_layers=extra.NUM_LAYERS)
 
-    deconv_suffix = ''.join('d{}'.format(num_filters)
-        for num_filters in extra.NUM_DECONV_FILTERS)
+    deconv_suffix = ''.join('d{}'.format(num_filters) for num_filters in extra.NUM_DECONV_FILTERS)
 
     full_name = '{height}x{width}_{name}_{deconv_suffix}'.format(
         height=cfg.MODEL.IMAGE_SIZE[1],
@@ -206,4 +203,5 @@ def get_model_name(cfg):
 
 if __name__ == '__main__':
     import sys
+
     gen_config(sys.argv[1])

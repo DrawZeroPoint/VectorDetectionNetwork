@@ -10,16 +10,8 @@ import cv2
 from libs.core.inference import get_all_preds
 
 
-def save_batch_image_with_joints(batch_image, batch_joints, batch_joints_vis, file_name, nrow=8, padding=0):
+def save_batch_image_with_joints(batch_image, batch_joints_xyv, file_name, nrow=8, padding=0):
     """
-
-    :param batch_image:
-    :param batch_joints:
-    :param batch_joints_vis:
-    :param file_name:
-    :param nrow:
-    :param padding:
-    :return:
     """
 
     grid = torchvision.utils.make_grid(batch_image, nrow, padding, True)
@@ -36,13 +28,12 @@ def save_batch_image_with_joints(batch_image, batch_joints, batch_joints_vis, fi
         for x in range(xmaps):
             if k >= nmaps:
                 break
-            joints = batch_joints[k]
-            joints_vis = batch_joints_vis[k]
+            joints = batch_joints_xyv[k]
 
-            for joint, joint_vis in zip(joints, joints_vis):
-                joint[0] = x * width + padding + joint[0]
-                joint[1] = y * height + padding + joint[1]
-                if joint_vis[0]:
+            for joint_list in joints:
+                for joint in joint_list:
+                    joint[0] = x * width + padding + joint[0]
+                    joint[1] = y * height + padding + joint[1]
                     cv2.circle(ndarr, (int(joint[0]), int(joint[1])), 2, [255, 0, 0], 2)
             k = k + 1
     cv2.imwrite(file_name, ndarr)
@@ -86,28 +77,22 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True):
             .byte() \
             .cpu().numpy()
 
-        resized_image = cv2.resize(image,
-                                   (int(heatmap_width), int(heatmap_height)))
+        resized_image = cv2.resize(image, (int(heatmap_width), int(heatmap_height)))
 
         height_begin = heatmap_height * i
         height_end = heatmap_height * (i + 1)
         for j in range(num_joints):
-            cv2.circle(resized_image,
-                       (int(preds[i][j][0]), int(preds[i][j][1])),
-                       1, [0, 0, 255], 1)
+            point_list = preds[i][j]
+            for point in point_list:
+                cv2.circle(resized_image, (point[0], point[1]), 1, [0, 0, 255], 1)
+
             heatmap = heatmaps[j, :, :]
             colored_heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
             masked_image = colored_heatmap * 1.0 + resized_image * 0
-            cv2.circle(masked_image,
-                       (int(preds[i][j][0]), int(preds[i][j][1])),
-                       1, [0, 0, 255], 1)
 
             width_begin = heatmap_width * (j + 1)
             width_end = heatmap_width * (j + 2)
-            grid_image[height_begin:height_end, width_begin:width_end, :] = \
-                masked_image
-            # grid_image[height_begin:height_end, width_begin:width_end, :] = \
-            #     colored_heatmap*0.7 + resized_image*0.3
+            grid_image[height_begin:height_end, width_begin:width_end, :] = masked_image
 
         grid_image[height_begin:height_end, 0:heatmap_width, :] = resized_image
 
@@ -119,9 +104,9 @@ def save_debug_images(config, input, meta, target, joints_pred, output, prefix):
         return
 
     if config.DEBUG.SAVE_BATCH_IMAGES_GT:
-        save_batch_image_with_joints(input, meta['joints'], meta['joints_vis'], '{}_gt.jpg'.format(prefix))
+        save_batch_image_with_joints(input, meta['joints_xyv'], '{}_gt.jpg'.format(prefix))
     if config.DEBUG.SAVE_BATCH_IMAGES_PRED:
-        save_batch_image_with_joints(input, joints_pred, meta['joints_vis'], '{}_pred.jpg'.format(prefix))
+        save_batch_image_with_joints(input, joints_pred, '{}_pred.jpg'.format(prefix))
     if config.DEBUG.SAVE_HEATMAPS_GT:
         save_batch_heatmaps(input, target, '{}_hm_gt.jpg'.format(prefix))
     if config.DEBUG.SAVE_HEATMAPS_PRED:

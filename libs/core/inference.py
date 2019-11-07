@@ -31,34 +31,30 @@ def get_all_preds(batch_heatmaps):
         for j in range(num_joints):
             heatmap = batch_heatmaps[n, j, :]
             bw = heatmap
-            bw[bw < 0.6] = 0
+            bw[bw < np.max(heatmap) * 0.9] = 0
             labeled_bw, _ = label(bw)
             cc = regionprops(labeled_bw)
 
-            peaks_in_one_map = []
-            peak_vals_in_one = []
-            cnt = 0
-            for k, c in enumerate(cc):
+            peaks = []
+            peakvals = []
+            for c in cc:
                 centroid = c.centroid  # tuple
                 row = int(centroid[0] + 0.5)
                 col = int(centroid[1] + 0.5)
-                peak = [col, row]
-                peaks_in_one_map.append(peak)
+
+                peak = np.array([col, row])
+                peaks.append(peak)
                 peak_val = heatmap[row, col]
-                peak_vals_in_one.append(peak_val)
-                cnt = k + 1
+                peakvals.append(peak_val)
 
-            peaks = np.array(peaks_in_one_map)
-            peakvals = np.array(peak_vals_in_one)
-            print(f'Found {cnt} contours in batch {n}, joint {j}; peaks {peaks}, peak_vals {peakvals}')
-
+            # print(f'Found {cnt} contours in batch {n}, joint {j}; peaks {peaks}, peak_vals {peakvals}')
             joints_peaks.append(peaks)
             joints_maxvals.append(peakvals)
 
         preds.append(joints_peaks)
         maxvals.append(joints_maxvals)
 
-    return np.array(preds), np.array(maxvals)
+    return np.array(preds), maxvals
 
 
 def get_max_preds(batch_heatmaps):
@@ -90,30 +86,45 @@ def get_max_preds(batch_heatmaps):
     return preds, maxvals
 
 
-def get_final_preds(config, batch_heatmaps, center, scale):
-    # coords, maxvals = get_max_preds(batch_heatmaps)
-    coords, maxvals = get_all_preds(batch_heatmaps)
+# def get_final_preds(config, batch_heatmaps, center, scale):
+#     # coords, maxvals = get_max_preds(batch_heatmaps)
+#     coords, maxvals = get_all_preds(batch_heatmaps)
+#
+#     heatmap_height = batch_heatmaps.shape[2]
+#     heatmap_width = batch_heatmaps.shape[3]
+#
+#     # post-processing
+#     if config.TEST.POST_PROCESS:
+#         for n in range(coords.shape[0]):
+#             for p in range(coords.shape[1]):
+#                 hm = batch_heatmaps[n][p]
+#                 px = int(math.floor(coords[n][p][0] + 0.5))
+#                 py = int(math.floor(coords[n][p][1] + 0.5))
+#                 if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
+#                     diff = np.array([hm[py][px + 1] - hm[py][px - 1],
+#                                      hm[py + 1][px] - hm[py - 1][px]])
+#                     coords[n][p] += np.sign(diff) * .25
+#
+#     preds = coords.copy()
+#
+#     # Transform back
+#     for i in range(coords.shape[0]):
+#         preds[i] = transform_preds(coords[i], center[i], scale[i],
+#                                    [heatmap_width, heatmap_height])
+#
+#     return preds, maxvals
 
+
+# @torchsnooper.snoop()
+def get_final_preds(config, batch_heatmaps, center, scale):
+    preds, maxvals = get_all_preds(batch_heatmaps)
+
+    batch_sz = batch_heatmaps.shape[0]
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
 
-    # post-processing
-    if config.TEST.POST_PROCESS:
-        for n in range(coords.shape[0]):
-            for p in range(coords.shape[1]):
-                hm = batch_heatmaps[n][p]
-                px = int(math.floor(coords[n][p][0] + 0.5))
-                py = int(math.floor(coords[n][p][1] + 0.5))
-                if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
-                    diff = np.array([hm[py][px + 1] - hm[py][px - 1],
-                                     hm[py + 1][px] - hm[py - 1][px]])
-                    coords[n][p] += np.sign(diff) * .25
-
-    preds = coords.copy()
-
     # Transform back
-    for i in range(coords.shape[0]):
-        preds[i] = transform_preds(coords[i], center[i], scale[i],
-                                   [heatmap_width, heatmap_height])
+    for i in range(batch_sz):
+        preds[i] = transform_preds(preds[i], center[i], scale[i], [heatmap_width, heatmap_height])
 
     return preds, maxvals

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class PointerDataset(JointsDataset):
     def __init__(self, cfg, root, image_set, is_train, transform=None):
-        super(PointerDataset, self).__init__(cfg, root, image_set, is_train, transform);
+        super(PointerDataset, self).__init__(cfg, root, image_set, is_train, transform)
         self.nms_thre = cfg.TEST.NMS_THRE
         self.image_thre = cfg.TEST.IMAGE_THRE
         self.oks_thre = cfg.TEST.OKS_THRE
@@ -52,8 +52,8 @@ class PointerDataset(JointsDataset):
         self.num_images = len(self.image_set_index)
         logger.info('=> num_images: {}'.format(self.num_images))
 
-        self.num_joints = 5
-        self.flip_pairs = [[0, 1], [1, 2], [2, 3], [3, 4]]
+        self.num_joints = cfg.MODEL.NUM_JOINTS
+        self.flip_pairs = []
         self.parent_ids = None
 
         self.db = self._get_db()
@@ -75,7 +75,6 @@ class PointerDataset(JointsDataset):
     def _load_image_set_index(self):
         """ image id: int """
         image_ids = self.coco.getImgIds()
-        print(image_ids)
         return image_ids
 
     def _get_db(self):
@@ -91,10 +90,10 @@ class PointerDataset(JointsDataset):
         """ ground truth bbox and keypoints """
         gt_db = []
         for index in self.image_set_index:
-            gt_db.extend(self._load_coco_keypoint_annotation_kernal(index))
+            gt_db.extend(self._load_coco_keypoint_annotation_kernel(index))
         return gt_db
 
-    def _load_coco_keypoint_annotation_kernal(self, index):
+    def _load_coco_keypoint_annotation_kernel(self, index):
         """
         coco ann: [u'segmentation', u'area', u'iscrowd', u'image_id', u'bbox', u'category_id', u'id']
         iscrowd:
@@ -109,11 +108,10 @@ class PointerDataset(JointsDataset):
         width = im_ann['width']
         height = im_ann['height']
 
-        annIds = self.coco.getAnnIds(imgIds=index, iscrowd=False)
-        objs = self.coco.loadAnns(annIds)
+        ann_ids = self.coco.getAnnIds(imgIds=index, iscrowd=False)
+        objs = self.coco.loadAnns(ann_ids)
 
-        # sanitize bboxes
-        valid_objs = []
+        all_in_one_obj = None
         for obj in objs:
             x, y, w, h = obj['bbox']
             x1 = np.max((0, x))
@@ -122,44 +120,61 @@ class PointerDataset(JointsDataset):
             y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
             if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
                 obj['clean_bbox'] = [x1, y1, x2-x1, y2-y1]
-                valid_objs.append(obj)
-        objs = valid_objs
+                all_in_one_obj = obj
+
+        if all_in_one_obj is None:
+            raise ValueError('No bbox available')
 
         rec = []
-        for obj in objs:
-            cls = self._coco_ind_to_class_ind[obj['category_id']]
-            if cls != 1:
-                continue
+        center, scale = self._box2cs(all_in_one_obj['clean_bbox'][:4])
 
-            # ignore objs without keypoints annotation
-            if max(obj['keypoints']) == 0:
-                continue
+        for j in range(self.num_joints):
+            p1_list = []
+            p2_list = []
+            p3_list = []
+            for obj in objs:
+                cls = self._coco_ind_to_class_ind[obj['category_id']]
+                if cls != 1:
+                    continue
 
-            joints_3d = np.zeros((self.num_joints, 3), dtype=np.float)
-            joints_3d_vis = np.zeros((self.num_joints, 3), dtype=np.float)
+                # Ignore objs without keypoints annotation
+                if max(obj['keypoints']) == 0:
+                    continue
 
-            for ipt in range(self.num_joints):
-                joints_3d[ipt, 0] = obj['keypoints'][ipt * 3 + 0]
-                joints_3d[ipt, 1] = obj['keypoints'][ipt * 3 + 1]
-                joints_3d[ipt, 2] = 0
-                t_vis = obj['keypoints'][ipt * 3 + 2]
-                if t_vis > 1:
-                    t_vis = 1
-                joints_3d_vis[ipt, 0] = t_vis
-                joints_3d_vis[ipt, 1] = t_vis
-                joints_3d_vis[ipt, 2] = 0
+                x = obj['keypoints'][j * 3]
+                y = obj['keypoints'][j * 3 + 1]
+                vis = obj['keypoints'][j * 3 + 2]
 
+                pt = np.array([x, y, vis])
 
-            center, scale = self._box2cs(obj['clean_bbox'][:4])
-            rec.append({
-                'image': self.image_path_from_index(index),
-                'center': center,
-                'scale': scale,
-                'joints_3d': joints_3d,
-                'joints_3d_vis': joints_3d_vis,
-                'filename': '',
-                'imgnum': 0,
-            })
+                if j == 0:
+                    p1_list.append(pt)
+                elif j == 1:
+                    p2_list.append(pt)
+                else:
+                    p3_list.append(pt)
+
+            if j == 0:
+                p1s = np.array(p1_list)
+            elif j == 1:
+                p2s = np.array(p2_list)
+            else:
+                p3s = np.array(p3_list)
+
+        res = np.concatenate((np.expand_dims(p1s, 0), np.expand_dims(p2s, 0), np.expand_dims(p3s, 0)))
+        # print(f'res {res}')
+
+        # joints [batch, num_joints, k, 3]
+        # joint_vis [batch, num_joints, k, 3]
+
+        rec.append({
+            'image': self.image_path_from_index(index),
+            'center': center,
+            'scale': scale,
+            'joints_xyv': res,
+            'filename': '',
+            'imgnum': 0,
+        })
 
         return rec
 

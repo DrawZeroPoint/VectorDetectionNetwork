@@ -19,19 +19,20 @@ class JointsMSELoss(nn.Module):
 
         '''
         Here split(1, 1) turns the tensor with dim (b_size, n_joints, w*h) to a tuple of tensor:
-        (<(b_size, 1, w*h)>, ..., <(b_size, 1, w*h)>), which contains 5 elements.
+        (<(b_size, 1, w*h)>, ..., <(b_size, 1, w*h)>), which contains num_joints elements.
         '''
         heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
         heatmaps_gt = target.reshape((batch_size, num_joints, -1)).split(1, 1)
+
         loss = 0
-        for idx in range(num_joints):
-            heatmap_pred = heatmaps_pred[idx].squeeze()
-            heatmap_gt = heatmaps_gt[idx].squeeze()
+        for j in range(num_joints):
+            heatmap_pred = heatmaps_pred[j].squeeze()
+            heatmap_gt = heatmaps_gt[j].squeeze()
             
             if self.use_target_weight:
                 loss += 0.5 * self.criterion(
-                    heatmap_pred.mul(target_weight[:, idx]),
-                    heatmap_gt.mul(target_weight[:, idx])
+                    heatmap_pred.mul(target_weight[:, j]),
+                    heatmap_gt.mul(target_weight[:, j])
                 )
             else:
                 loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)

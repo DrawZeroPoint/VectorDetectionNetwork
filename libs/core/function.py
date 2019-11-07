@@ -11,7 +11,6 @@ import torch
 from libs.core.config import get_model_name
 from libs.core.evaluate import accuracy
 from libs.core.inference import get_final_preds
-from libs.utils.transforms import flip_back
 from libs.utils.vis import save_debug_images
 
 
@@ -50,8 +49,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
-        _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(),
-                                         target.detach().cpu().numpy())
+        _, avg_acc, cnt, pred = accuracy(output.detach().cpu().numpy(), target.detach().cpu().numpy())
         acc.update(avg_acc, cnt)
 
         # measure elapsed time
@@ -90,8 +88,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
     model.eval()
 
     num_samples = len(val_dataset)
-    all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3),
-                         dtype=np.float32)
+    all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32)
     all_boxes = np.zeros((num_samples, 6))
     image_path = []
     filenames = []
@@ -103,23 +100,6 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
             
             # compute output
             output = model(input)
-            if config.TEST.FLIP_TEST:
-                # this part is ugly, because pytorch has not supported negative index
-                # input_flipped = model(input[:, :, :, ::-1])
-                input_flipped = np.flip(input.cpu().numpy(), 3).copy()
-                input_flipped = torch.from_numpy(input_flipped).cuda()
-                output_flipped = model(input_flipped)
-                output_flipped = flip_back(output_flipped.cpu().numpy(),
-                                           val_dataset.flip_pairs)
-                output_flipped = torch.from_numpy(output_flipped.copy()).cuda()
-
-                # feature is not aligned, shift flipped heatmap for higher accuracy
-                if config.TEST.SHIFT_HEATMAP:
-                    output_flipped[:, :, :, 1:] = \
-                        output_flipped.clone()[:, :, :, 0:-1]
-                    # output_flipped[:, :, :, 0] = 0
-
-                output = (output + output_flipped) * 0.5
 
             target = target.cuda(non_blocking=True)
             target_weight = target_weight.cuda(non_blocking=True)
@@ -129,10 +109,9 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
             num_images = input.size(0)
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
-            _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(),
-                                             target.cpu().numpy())
+            _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(), target.cpu().numpy())
 
-            acc.update(avg_acc, cnt)
+            # acc.update(avg_acc, cnt)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -142,8 +121,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
 
-            preds, maxvals = get_final_preds(
-                config, output.clone().cpu().numpy(), c, s)
+            preds, maxvals = get_final_preds(config, output.clone().cpu().numpy(), c, s)
 
             all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
             all_preds[idx:idx + num_images, :, 2:3] = maxvals
@@ -153,9 +131,6 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
             all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
             all_boxes[idx:idx + num_images, 5] = score
             image_path.extend(meta['image'])
-            if config.DATASET.DATASET == 'posetrack':
-                filenames.extend(meta['filename'])
-                imgnums.extend(meta['imgnum'].numpy())
 
             idx += num_images
 
@@ -169,11 +144,10 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
                 logger.info(msg)
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                save_debug_images(config, input, meta, target, pred*4, output,
-                                  prefix)
+                save_debug_images(config, input, meta, target, pred*4, output, prefix)
 
-        name_values, perf_indicator = val_dataset.evaluate(
-            config, all_preds, output_dir, all_boxes, image_path, filenames, imgnums)
+        name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
+                                                           image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)
         if isinstance(name_values, list):

@@ -203,8 +203,10 @@ class VectorDetectionNetwork:
             if verbose:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
-                for i, p in enumerate(preds[0]):
-                    vis_util.apply_dot(draw, p.tolist(), image_width, image_height, idx=i)
+
+                for i, point_list in enumerate(preds[0]):
+                    vis_util.apply_dot(draw, point_list, image_width, image_height, idx=i)
+
                 output_image = vis_util.pil_img_to_cv(roi_pil)
                 cv2.imwrite(os.path.join(root_dir, "data/results/output.jpg"), output_image)
 

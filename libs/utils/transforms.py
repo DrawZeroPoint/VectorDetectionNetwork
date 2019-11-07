@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import absolute_import
-from __future__ import division
-
 import numpy as np
 import cv2
+import torchsnooper
 
 
 def flip_back(output_flipped, matched_parts):
@@ -42,11 +40,23 @@ def fliplr_joints(joints, joints_vis, width, matched_parts):
     return joints*joints_vis, joints_vis
 
 
+# @torchsnooper.snoop()
 def transform_preds(coords, center, scale, output_size):
-    target_coords = np.zeros(coords.shape)
+    # print(f'coords {coords}')
+    # [list([array([46, 46]), array([44, 50]), array([45, 52])])
+    #  list([array([45, 44])]) list([array([75, 88])])]
+
+    target_coords = []
     trans = get_affine_transform(center, scale, 0, output_size, inv=1)
-    for p in range(coords.shape[0]):
-        target_coords[p, 0:2] = affine_transform(coords[p, 0:2], trans)
+    for k in range(coords.shape[0]):
+        point_list = coords[k]
+        target_list = []
+        for p in point_list:
+            pt = affine_transform(p, trans)
+            target_list.append(pt)
+        target_coords.append(target_list)
+    target_coords = np.array(target_coords)
+
     return target_coords
 
 

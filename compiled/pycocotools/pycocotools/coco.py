@@ -117,15 +117,17 @@ class COCO:
         for key, value in self.dataset['info'].items():
             print('{}: {}'.format(key, value))
 
-    def getAnnIds(self, imgIds=[], catIds=[], areaRng=[], iscrowd=None):
+    def getAnnIds(self, imgIds=None, catIds=[], areaRng=[], iscrowd=None):
         """
         Get ann ids that satisfy given filter conditions. default skips that filter
-        :param imgIds  (int array)     : get anns for given imgs
+        :param imgIds: get anns for given imgs
                catIds  (int array)     : get anns for given cats
                areaRng (float array)   : get anns for given area range (e.g. [0 inf])
                iscrowd (boolean)       : get anns for given crowd label (False or True)
         :return: ids (int array)       : integer array of ann ids
         """
+        if imgIds is None:
+            imgIds = []
         imgIds = imgIds if _isArrayLike(imgIds) else [imgIds]
         catIds = catIds if _isArrayLike(catIds) else [catIds]
 
@@ -200,23 +202,27 @@ class COCO:
         elif type(ids) == int:
             return [self.anns[ids]]
 
-    def loadCats(self, ids=[]):
+    def loadCats(self, ids=None):
         """
         Load cats with the specified ids.
-        :param ids (int array)       : integer ids specifying cats
+        :param ids: integer ids specifying cats
         :return: cats (object array) : loaded cat objects
         """
+        if ids is None:
+            ids = []
         if _isArrayLike(ids):
             return [self.cats[id] for id in ids]
         elif type(ids) == int:
             return [self.cats[ids]]
 
-    def loadImgs(self, ids=[]):
+    def loadImgs(self, ids=None):
         """
         Load anns with the specified ids.
-        :param ids (int array)       : integer ids specifying img
+        :param ids: integer ids specifying img
         :return: imgs (object array) : loaded img objects
         """
+        if ids is None:
+            ids = []
         if _isArrayLike(ids):
             return [self.imgs[id] for id in ids]
         elif type(ids) == int:

@@ -1,27 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import absolute_import
-from __future__ import division
-
 import numpy as np
 
 import libs.core.inference as lib_inference
-
-
-def calc_dists(preds, target, normalize):
-    preds = preds.astype(np.float32)
-    target = target.astype(np.float32)
-    dists = np.zeros((preds.shape[1], preds.shape[0]))
-    for n in range(preds.shape[0]):
-        for c in range(preds.shape[1]):
-            if target[n, c, 0] > 1 and target[n, c, 1] > 1:
-                normed_preds = preds[n, c, :] / normalize[n]
-                normed_targets = target[n, c, :] / normalize[n]
-                dists[c, n] = np.linalg.norm(normed_preds - normed_targets)
-            else:
-                dists[c, n] = -1
-    return dists
 
 
 def dist_acc(dists, thr=0.5):
@@ -36,23 +18,41 @@ def dist_acc(dists, thr=0.5):
         return -1
 
 
-def accuracy(output, target):
+def accuracy(output, targets):
     """Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
     First value to be returned is average accuracy across 'idxs',
     followed by individual accuracies
     """
-    idx = list(range(output.shape[1]))
-
-    # pred, _ = get_max_preds(output)
-    # target, _ = get_max_preds(target)
-    pred, _ = lib_inference.get_all_preds(output)
-    target, _ = lib_inference.get_all_preds(target)
-
+    batch_sz = output.shape[0]
+    num_joints = output.shape[1]
     h = output.shape[2]
     w = output.shape[3]
-    norm = np.ones((pred.shape[0], 2)) * np.array([h, w]) / 10
-    dists = calc_dists(pred, target, norm)
+    idx = list(range(num_joints))
+
+    preds, _ = lib_inference.get_all_preds(output)
+    targets, _ = lib_inference.get_all_preds(targets)
+    # print(f'preds {preds}, target {targets}')
+
+    norm = np.ones(2) * np.array([h, w]) / 10
+    dists = np.zeros((num_joints, batch_sz))
+    for n in range(batch_sz):
+        for c in range(num_joints):
+            preds_list = preds[n][c]
+            targets_list = targets[n][c]
+            dist_all_pred = 0
+            for pred in preds_list:
+                dist_one_pred = 0
+                for target in targets_list:
+                    if target[0] > 1 and target[1] > 1:
+                        normed_preds = pred / norm
+                        normed_targets = target / norm
+                        dist = np.linalg.norm(normed_preds - normed_targets)
+                    else:
+                        dist = -1
+                    dist_one_pred += dist
+                dist_all_pred += dist_one_pred
+            dists[c, n] = dist_all_pred
 
     acc = np.zeros((len(idx) + 1))
     avg_acc = 0
@@ -67,4 +67,4 @@ def accuracy(output, target):
     avg_acc = avg_acc / cnt if cnt != 0 else 0
     if cnt != 0:
         acc[0] = avg_acc
-    return acc, avg_acc, cnt, pred
+    return acc, avg_acc, cnt, preds
