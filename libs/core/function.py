@@ -75,7 +75,7 @@ def train(config, train_loader, model, criterion, optimizer, epoch, output_dir, 
                 writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target, pred*4, output, prefix)
+            save_debug_images(config, input, meta, target, pred, output, prefix)
 
 
 def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_log_dir):
@@ -88,14 +88,15 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
     model.eval()
 
     num_samples = len(val_dataset)
-    all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32)
-    all_boxes = np.zeros((num_samples, 6))
+
     image_path = []
     filenames = []
     imgnums = []
     idx = 0
     with torch.no_grad():
         end = time.time()
+        all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32)
+        all_boxes = np.zeros((num_samples, 6))
         for i, (input, target, target_weight, meta) in enumerate(val_loader):
             
             # compute output
@@ -144,7 +145,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
                 logger.info(msg)
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                save_debug_images(config, input, meta, target, pred*4, output, prefix)
+                save_debug_images(config, input, meta, target, pred, output, prefix)
 
         name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
                                                            image_path, filenames, imgnums)

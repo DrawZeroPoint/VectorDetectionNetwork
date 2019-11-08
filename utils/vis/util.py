@@ -19,17 +19,7 @@ from torchvision import datasets, models, transforms
 
 
 STANDARD_COLORS = [
-    'Aqua', 'Chartreuse', 'Aquamarine', 'Chocolate', 'Coral', 'CornflowerBlue',
-    'DarkCyan', 'DarkGoldenRod', 'DarkGrey', 'DarkKhaki', 'DarkOrange',
-    'DarkOrchid', 'DarkSalmon', 'DarkSeaGreen', 'DarkTurquoise', 'DarkViolet',
-    'DeepPink', 'DeepSkyBlue', 'DodgerBlue', 'FireBrick', 'FloralWhite',
-    'ForestGreen', 'Fuchsia', 'Gainsboro', 'GhostWhite', 'Gold', 'GoldenRod',
-    'Salmon', 'Tan', 'HoneyDew', 'HotPink', 'IndianRed', 'Ivory', 'Khaki',
-    'Lavender', 'LavenderBlush', 'LawnGreen', 'LemonChiffon', 'LightBlue',
-    'LightCoral', 'LightCyan', 'LightGoldenRodYellow', 'LightGray', 'LightGrey',
-    'LightGreen', 'LightPink', 'LightSalmon', 'LightSeaGreen', 'LightSkyBlue',
-    'LightSlateGray', 'LightSlateGrey', 'LightSteelBlue', 'LightYellow', 'Lime',
-    'LimeGreen', 'Linen', 'BlueViolet', 'Magenta', 'MediumAquaMarine', 'MediumOrchid',
+    'Aqua', 'HotPink', 'IndianRed', 'LawnGreen', 'LemonChiffon', 'MediumOrchid',
     'MediumPurple', 'MediumSeaGreen', 'MediumSlateBlue', 'MediumSpringGreen',
     'MediumTurquoise', 'MediumVioletRed', 'MintCream', 'MistyRose', 'Moccasin',
     'NavajoWhite', 'OldLace', 'Olive', 'OliveDrab', 'Orange', 'OrangeRed',
@@ -46,11 +36,10 @@ NUM_COLORS = len(STANDARD_COLORS)
 
 
 def show_tensor_data(inputs, title=None):
-    """Imshow for Tensor.
-        Use:
-        inputs, classes = next(iter(dataloaders['train']))
-        class_names = image_datasets['train'].classes
-        show_tensor_data(inputs, title=[class_names[x] for x in classes])
+    """Use:
+    inputs, classes = next(iter(dataloaders['train']))
+    class_names = image_datasets['train'].classes
+    show_tensor_data(inputs, title=[class_names[x] for x in classes])
     """
     inp = torchvision.utils.make_grid(inputs)
     inp = inp.numpy().transpose((1, 2, 0))

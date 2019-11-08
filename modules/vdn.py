@@ -49,7 +49,6 @@ model_path = os.path.join(root_dir, "weights/vdn_best.pth.tar")
 class VectorDetectionNetwork:
     """
     """
-
     def __init__(self, train=False):
         vdn_config = os.path.join(root_dir, "cfgs/resnet50/384x384_d256x3_adam_lr1e-3.yaml")
         lib_config.update_config(vdn_config)

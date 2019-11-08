@@ -4,16 +4,61 @@
 import math
 import torchsnooper
 import numpy as np
+import scipy.ndimage as ndimage
 
 from scipy.ndimage.measurements import label
 from skimage.measure import regionprops
+from skimage.feature import peak_local_max
+from skimage import img_as_float
 
 from libs.utils.transforms import transform_preds
 
 
+def get_peaks_by_regions(heatmap):
+    bw = heatmap
+    bw[bw < np.max(heatmap) * 0.9] = 0
+    labeled_bw, _ = label(bw)
+    cc = regionprops(labeled_bw)
+
+    peaks = []
+    peakvals = []
+    for c in cc:
+        centroid = c.centroid  # tuple
+        row = int(centroid[0] + 0.5)
+        col = int(centroid[1] + 0.5)
+
+        peak = np.array([col, row])
+        peaks.append(peak)
+        peak_val = heatmap[row, col]
+        peakvals.append(peak_val)
+
+    return peaks, peakvals
+
+
+def get_peaks_by_local_maximum(heatmap):
+    heatmap = img_as_float(heatmap)
+
+    # High pass filter on heatmap
+    heatmap[heatmap < np.max(heatmap * 0.5)] = 0
+    coordinates = peak_local_max(heatmap, min_distance=20)
+
+    peaks = []
+    peakvals = []
+    for c in coordinates:
+        row = int(c[0] + 0.5)
+        col = int(c[1] + 0.5)
+
+        peak = np.array([col, row])
+        peaks.append(peak)
+        peak_val = heatmap[row, col]
+        peakvals.append(peak_val)
+
+    return peaks, peakvals
+
+
 # @torchsnooper.snoop()
 def get_all_preds(batch_heatmaps):
-    """Get predictions (n, c, 2), 2 for (x, y), from model output
+    """Get predictions (n, c, k, 2), 2 for (x, y), from model output
 
     :param batch_heatmaps: numpy.ndarray([batch_size, num_joints, height, width])
     """
@@ -30,23 +75,9 @@ def get_all_preds(batch_heatmaps):
         joints_maxvals = []
         for j in range(num_joints):
             heatmap = batch_heatmaps[n, j, :]
-            bw = heatmap
-            bw[bw < np.max(heatmap) * 0.9] = 0
-            labeled_bw, _ = label(bw)
-            cc = regionprops(labeled_bw)
 
-            peaks = []
-            peakvals = []
-            # cnt = 0
-            for c in cc:
-                centroid = c.centroid  # tuple
-                row = int(centroid[0] + 0.5)
-                col = int(centroid[1] + 0.5)
-
-                peak = np.array([col, row])
-                peaks.append(peak)
-                peak_val = heatmap[row, col]
-                peakvals.append(peak_val)
+            # Get all peaks (local maximum) within the heatmap
+            peaks, peakvals = get_peaks_by_local_maximum(heatmap)
 
             joints_peaks.append(peaks)
             joints_maxvals.append(peakvals)
@@ -84,35 +115,6 @@ def get_max_preds(batch_heatmaps):
 
     preds *= pred_mask
     return preds, maxvals
-
-
-# def get_final_preds(config, batch_heatmaps, center, scale):
-#     # coords, maxvals = get_max_preds(batch_heatmaps)
-#     coords, maxvals = get_all_preds(batch_heatmaps)
-#
-#     heatmap_height = batch_heatmaps.shape[2]
-#     heatmap_width = batch_heatmaps.shape[3]
-#
-#     # post-processing
-#     if config.TEST.POST_PROCESS:
-#         for n in range(coords.shape[0]):
-#             for p in range(coords.shape[1]):
-#                 hm = batch_heatmaps[n][p]
-#                 px = int(math.floor(coords[n][p][0] + 0.5))
-#                 py = int(math.floor(coords[n][p][1] + 0.5))
-#                 if 1 < px < heatmap_width - 1 and 1 < py < heatmap_height - 1:
-#                     diff = np.array([hm[py][px + 1] - hm[py][px - 1],
-#                                      hm[py + 1][px] - hm[py - 1][px]])
-#                     coords[n][p] += np.sign(diff) * .25
-#
-#     preds = coords.copy()
-#
-#     # Transform back
-#     for i in range(coords.shape[0]):
-#         preds[i] = transform_preds(coords[i], center[i], scale[i],
-#                                    [heatmap_width, heatmap_height])
-#
-#     return preds, maxvals
 
 
 # @torchsnooper.snoop()
