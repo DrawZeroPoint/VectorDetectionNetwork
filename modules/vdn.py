@@ -158,7 +158,7 @@ class VectorDetectionNetwork:
         torch.save(self.model.module.state_dict(), final_model_state_file)
 
     # @torchsnooper.snoop()
-    def get_vectors(self, roi_image, verbose=False):
+    def get_vectors(self, roi_image, verbose=0):
         """Given ROI image roi_image in ndarray format, return vectors represented by 2 points [[[ps_x, ps_y],
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
 
@@ -207,8 +207,9 @@ class VectorDetectionNetwork:
                     vis_util.apply_dot(draw, point_list, image_width, image_height, idx=i)
 
                 output_image = vis_util.pil_img_to_cv(roi_pil)
-                cv2.imwrite(os.path.join(root_dir, "data/results/output.jpg"), output_image)
+                cv2.imwrite(os.path.join(root_dir, f'data/results/{verbose}_out.jpg'), output_image)
 
-                vis_util.save_batch_heatmaps(net_input, output, os.path.join(root_dir, "data/results/hmap.jpg"))
+                vis_util.save_batch_heatmaps(net_input, output,
+                                             os.path.join(root_dir, f'data/results/{verbose}_hmap.jpg'))
 
             return preds[0], maxvals[0]

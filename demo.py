@@ -22,11 +22,11 @@ class Test(unittest.TestCase):
         file_num = len(file_list)
         print(f'Got {file_num} image(s) for demo')
 
-        for item in file_list:
+        for k, item in enumerate(file_list):
             image_path = os.path.join(demo_data_dir, item)
             src_img = cv2.imread(image_path)
 
-            VDN.get_vectors(src_img, verbose=True)
+            VDN.get_vectors(src_img, verbose=k+1)
 
 
 if __name__ == '__main__':

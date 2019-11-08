@@ -40,7 +40,7 @@ def get_peaks_by_local_maximum(heatmap):
 
     # High pass filter on heatmap
     heatmap[heatmap < np.max(heatmap * 0.5)] = 0
-    coordinates = peak_local_max(heatmap, min_distance=20)
+    coordinates = peak_local_max(heatmap, min_distance=10)
 
     peaks = []
     peakvals = []
