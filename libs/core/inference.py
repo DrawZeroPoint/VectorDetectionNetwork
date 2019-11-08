@@ -37,6 +37,7 @@ def get_all_preds(batch_heatmaps):
 
             peaks = []
             peakvals = []
+            # cnt = 0
             for c in cc:
                 centroid = c.centroid  # tuple
                 row = int(centroid[0] + 0.5)
@@ -47,7 +48,6 @@ def get_all_preds(batch_heatmaps):
                 peak_val = heatmap[row, col]
                 peakvals.append(peak_val)
 
-            # print(f'Found {cnt} contours in batch {n}, joint {j}; peaks {peaks}, peak_vals {peakvals}')
             joints_peaks.append(peaks)
             joints_maxvals.append(peakvals)
 

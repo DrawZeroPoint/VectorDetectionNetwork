@@ -53,7 +53,6 @@ class PointerDataset(JointsDataset):
         logger.info('=> num_images: {}'.format(self.num_images))
 
         self.num_joints = cfg.MODEL.NUM_JOINTS
-        self.flip_pairs = []
         self.parent_ids = None
 
         self.db = self._get_db()
@@ -129,40 +128,31 @@ class PointerDataset(JointsDataset):
         center, scale = self._box2cs(all_in_one_obj['clean_bbox'][:4])
 
         for j in range(self.num_joints):
-            p1_list = []
-            p2_list = []
-            p3_list = []
-            for obj in objs:
+            keys_of_joint_j = []
+            for k, obj in enumerate(objs):
                 cls = self._coco_ind_to_class_ind[obj['category_id']]
                 if cls != 1:
-                    continue
+                    raise ValueError('class not equal to 1')
 
                 # Ignore objs without keypoints annotation
                 if max(obj['keypoints']) == 0:
-                    continue
+                    raise ValueError('no keypoint')
 
                 x = obj['keypoints'][j * 3]
                 y = obj['keypoints'][j * 3 + 1]
                 vis = obj['keypoints'][j * 3 + 2]
 
                 pt = np.array([x, y, vis])
-
-                if j == 0:
-                    p1_list.append(pt)
-                elif j == 1:
-                    p2_list.append(pt)
-                else:
-                    p3_list.append(pt)
+                keys_of_joint_j.append(pt)
 
             if j == 0:
-                p1s = np.array(p1_list)
+                p1s = np.array(keys_of_joint_j)
             elif j == 1:
-                p2s = np.array(p2_list)
+                p2s = np.array(keys_of_joint_j)
             else:
-                p3s = np.array(p3_list)
+                p3s = np.array(keys_of_joint_j)
 
         res = np.concatenate((np.expand_dims(p1s, 0), np.expand_dims(p2s, 0), np.expand_dims(p3s, 0)))
-        # print(f'res {res}')
 
         # joints [batch, num_joints, k, 3]
         # joint_vis [batch, num_joints, k, 3]
@@ -252,19 +242,17 @@ class PointerDataset(JointsDataset):
                 'joints_3d_vis': joints_3d_vis,
             })
 
-        logger.info('=> Total boxes after fliter low score@{}: {}'.format(
+        logger.info('=> Total boxes after filter low score@{}: {}'.format(
             self.image_thre, num_boxes))
         return kpt_db
 
-    def evaluate(self, cfg, preds, output_dir, all_boxes, img_path,
-                 *args, **kwargs):
+    def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
         res_folder = os.path.join(output_dir, 'results')
         if not os.path.exists(res_folder):
             os.makedirs(res_folder)
         res_file = os.path.join(
             res_folder, 'keypoints_%s_results.json' % self.image_set)
 
-        # person x (keypoints)
         _kpts = []
         for idx, kpt in enumerate(preds):
             _kpts.append({
@@ -275,7 +263,7 @@ class PointerDataset(JointsDataset):
                 'score': all_boxes[idx][5],
                 'image': int(img_path[idx][-16:-4])
             })
-        # image x person x (keypoints)
+
         kpts = defaultdict(list)
         for kpt in _kpts:
             kpts[kpt['image']].append(kpt)

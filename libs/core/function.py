@@ -111,7 +111,7 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
             losses.update(loss.item(), num_images)
             _, avg_acc, cnt, pred = accuracy(output.cpu().numpy(), target.cpu().numpy())
 
-            # acc.update(avg_acc, cnt)
+            acc.update(avg_acc, cnt)
 
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -123,15 +123,15 @@ def validate(config, val_loader, val_dataset, model, criterion, output_dir, tb_l
 
             preds, maxvals = get_final_preds(config, output.clone().cpu().numpy(), c, s)
 
-            all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
-            all_preds[idx:idx + num_images, :, 2:3] = maxvals
-            # double check this all_boxes parts
+            # all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
+            # all_preds[idx:idx + num_images, :, 2:3] = maxvals
+
             all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
             all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
             all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
             all_boxes[idx:idx + num_images, 5] = score
-            image_path.extend(meta['image'])
 
+            image_path.extend(meta['image'])
             idx += num_images
 
             if i % config.PRINT_FREQ == 0:

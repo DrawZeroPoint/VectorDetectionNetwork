@@ -11,7 +11,6 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 
-from libs.utils.transforms import fliplr_joints
 from libs.utils.transforms import affine_transform
 from libs.utils.transforms import get_affine_transform
 
@@ -83,8 +82,7 @@ class JointsDataset(Dataset):
             sf = self.scale_factor
             rf = self.rotation_factor
             s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
-            r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) \
-                if random.random() <= 0.5 else 0
+            r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.5 else 0
 
         trans = get_affine_transform(c, s, r, self.image_size)
         input = cv2.warpAffine(data_numpy, trans, (int(self.image_size[0]), int(self.image_size[1])),
@@ -93,9 +91,6 @@ class JointsDataset(Dataset):
         if self.transform:
             input = Image.fromarray(input)
             input = self.transform(input)
-
-        # print(f'joints {joints}')
-        # print(f'joint_vis {joints_vis}')
 
         # joints_xyv [num_joints, k, 3]
         for i in range(self.num_joints):
@@ -112,11 +107,11 @@ class JointsDataset(Dataset):
             'image': image_file,
             'filename': filename,
             'imgnum': imgnum,
-            'joints_xyv': joints_xyv,
             'center': c,
             'scale': s,
             'rotation': r,
-            'score': score
+            'score': score,
+            'joints_xyv': joints_xyv
         }
 
         return input, target, target_weight, meta
@@ -164,11 +159,6 @@ class JointsDataset(Dataset):
         """
         target_weight = np.ones((self.num_joints, 1), dtype=np.float32)
 
-        # for j in range(self.num_joints):
-        #     for k in range(joints_xyv.shape[1]):
-        #         idx = joints_xyv[j][k][0] * joints_xyv[j][k][1]
-        #         target_weight[j][idx] = joints_xyv[j][k][2]
-
         assert self.target_type == 'gaussian', 'Only support gaussian map now!'
 
         target = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
@@ -205,6 +195,10 @@ class JointsDataset(Dataset):
 
                 v = target_weight[j]
                 if v > 0.5:
-                    target[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+                    prev_val = target[j][img_y[0]:img_y[1], img_x[0]:img_x[1]]
+                    curr_val = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+                    combined_val = np.maximum(prev_val, curr_val)
+                    # print(f'com {combined_val}')
+                    target[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
 
         return target, target_weight

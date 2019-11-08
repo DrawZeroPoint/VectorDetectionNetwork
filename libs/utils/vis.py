@@ -24,6 +24,7 @@ def save_batch_image_with_joints(batch_image, batch_joints_xyv, file_name, nrow=
     height = int(batch_image.size(2) + padding)
     width = int(batch_image.size(3) + padding)
     k = 0
+
     for y in range(ymaps):
         for x in range(xmaps):
             if k >= nmaps:

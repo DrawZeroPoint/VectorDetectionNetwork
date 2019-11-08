@@ -1,7 +1,7 @@
 GPUS: '0'
 OUTPUT_DIR: '/VDN/weights/output'
 LOG_DIR: '/VDN/logs'
-WORKERS: 4
+WORKERS: 1
 
 DATASET:
   DATASET: 'coco'
@@ -39,7 +39,7 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE: 2
+  BATCH_SIZE: 1
   SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 160
