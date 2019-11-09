@@ -42,7 +42,7 @@ TRAIN:
   BATCH_SIZE: 1
   SHUFFLE: true
   BEGIN_EPOCH: 0
-  END_EPOCH: 160
+  END_EPOCH: 200
   RESUME: false
   OPTIMIZER: 'adam'
   LR: 0.001

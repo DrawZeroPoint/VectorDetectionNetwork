@@ -19,8 +19,8 @@ def _gather_feat(feat, ind, mask=None):
     """
     dim = feat.size(2)  # 2
     ind = ind.squeeze(1)  # (b, k)
-    ind = ind.expand(ind.size(0), dim, ind.size(1))
-    feat = feat.permute(0, 2, 1)
+    ind = ind.expand(ind.size(0), dim, ind.size(1))  # (b, 2, k)
+    feat = feat.permute(0, 2, 1)  # (b, 2, 96*96)
     feat = feat.gather(2, ind)
     if mask is not None:
         mask = mask.unsqueeze(2).expand_as(feat)
@@ -43,7 +43,7 @@ class RegL1Loss(nn.Module):
     def forward(self, out_vector, target_vector, tgt_indexes):
         """
         :param out_vector: torch.Size([b, 2, 96, 96])
-        :param tgt_indexes: torch.Size([b, 1, k])
+        :param tgt_indexes: torch.Size([b, j, k])
         :param target_vector: torch.Size([b, j, k, 2])
         :return:
         """

@@ -45,8 +45,8 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         #       f'tgt_indexes {tgt_indexes.shape}')
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
-        # v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
-        loss = j_loss #+ 0.001 * v_loss
+        v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
+        loss = j_loss + 0.0001 * v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -56,7 +56,10 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
-        _, avg_acc, cnt, pred = accuracy(out_heatmap.detach().cpu().numpy(), target_heatmap.detach().cpu().numpy())
+        _, avg_acc, cnt, pred_j, pred_v = accuracy(out_heatmap.detach().cpu().numpy(),
+                                                   out_vector.detach().cpu().numpy(),
+                                                   target_heatmap.detach().cpu().numpy())
+
         acc.update(avg_acc, cnt)
 
         # measure elapsed time
@@ -82,7 +85,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                 writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target_heatmap, pred, out_heatmap, prefix)
+            save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, tb_log_dir):
@@ -116,13 +119,16 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             tgt_indexes = tgt_indexes.cuda(non_blocking=True)
 
             j_loss = crit_heatmap(out_heatmap, target_heatmap)
-            # v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
-            loss = j_loss #+ 0.001 * v_loss
+            v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
+            loss = j_loss + 0.0001 * v_loss
 
             num_images = input.size(0)
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
-            _, avg_acc, cnt, pred = accuracy(out_heatmap.cpu().numpy(), target_heatmap.cpu().numpy())
+
+            _, avg_acc, cnt, pred_j, pred_v = accuracy(out_heatmap.detach().cpu().numpy(),
+                                                       out_vector.detach().cpu().numpy(),
+                                                       target_heatmap.detach().cpu().numpy())
 
             acc.update(avg_acc, cnt)
 
@@ -157,7 +163,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                 logger.info(msg)
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                save_debug_images(config, input, meta, target_heatmap, pred, out_heatmap, prefix)
+                save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
         name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
                                                            image_path, filenames, imgnums)

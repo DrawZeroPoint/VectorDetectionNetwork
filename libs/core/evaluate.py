@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import torch
 import numpy as np
 
 import libs.core.inference as lib_inference
@@ -18,27 +19,32 @@ def dist_acc(dists, thr=0.5):
         return -1
 
 
-def accuracy(output, targets):
+def accuracy(heatmaps, vectormaps, targets):
     """Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
     First value to be returned is average accuracy across 'idxs',
     followed by individual accuracies
+    
+    :param heatmaps: 
+    :param vectormaps: (b, 2, 96, 96)
+    :param targets: 
+    :return: preds_joints (b, j, k, 2), 2 for x y; preds_vector (b, k, 2), 2 for vx vy
     """
-    batch_sz = output.shape[0]
-    num_joints = output.shape[1]
-    h = output.shape[2]
-    w = output.shape[3]
+    batch_sz = heatmaps.shape[0]
+    num_joints = heatmaps.shape[1]
+    h = heatmaps.shape[2]
+    w = heatmaps.shape[3]
     idx = list(range(num_joints))
 
-    preds, _ = lib_inference.get_all_preds(output)
+    preds_joints, _ = lib_inference.get_all_preds(heatmaps)
     targets, _ = lib_inference.get_all_preds(targets)
-    # print(f'preds {preds}, target {targets}')
+    # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
 
     norm = np.ones(2) * np.array([h, w]) / 10
     dists = np.zeros((num_joints, batch_sz))
     for n in range(batch_sz):
         for c in range(num_joints):
-            preds_list = preds[n][c]
+            preds_list = preds_joints[n][c]
             targets_list = targets[n][c]
             dist_all_pred = 0
             for pred in preds_list:
@@ -54,6 +60,22 @@ def accuracy(output, targets):
                 dist_all_pred += dist_one_pred
             dists[n, c] = dist_all_pred
 
+    vectormaps = np.reshape(vectormaps, (vectormaps.shape[0], vectormaps.shape[1], -1))
+    # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
+
+    if len(preds_joints.shape) == 4:
+        preds_idx = np.squeeze(preds_joints[:, :, :, 0] * preds_joints[:, :, :, 1], 1)  # (b, k)
+        # print(f'preds_idx {preds_idx.shape}')
+
+        vectormaps_t = torch.from_numpy(vectormaps)  # (b, 2, 96*96)
+        preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
+
+        preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
+        preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
+        preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
+    else:
+        preds_vector = None
+
     acc = np.zeros((len(idx) + 1))
     avg_acc = 0
     cnt = 0
@@ -67,4 +89,4 @@ def accuracy(output, targets):
     avg_acc = avg_acc / cnt if cnt != 0 else 0
     if cnt != 0:
         acc[0] = avg_acc
-    return acc, avg_acc, cnt, preds
+    return acc, avg_acc, cnt, preds_joints, preds_vector
