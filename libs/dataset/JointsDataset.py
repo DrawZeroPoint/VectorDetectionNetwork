@@ -2,6 +2,7 @@
 
 import cv2
 import copy
+import math
 import torch
 import random
 import logging
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class JointsDataset(Dataset):
     def __init__(self, cfg, root, image_set, is_train, transform=None):
-        self.num_joints = 0
+        self.num_joints = 1
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
@@ -63,11 +64,11 @@ class JointsDataset(Dataset):
 
         if self.data_format == 'zip':
             from utils import zipreader
-            data_numpy = zipreader.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+            input_numpy = zipreader.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         else:
-            data_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+            input_numpy = cv2.imread(image_file, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
         
-        if data_numpy is None:
+        if input_numpy is None:
             logger.error('=> fail to read {}'.format(image_file))
             raise ValueError('Fail to read {}'.format(image_file))
 
@@ -85,23 +86,25 @@ class JointsDataset(Dataset):
             r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.5 else 0
 
         trans = get_affine_transform(c, s, r, self.image_size)
-        input = cv2.warpAffine(data_numpy, trans, (int(self.image_size[0]), int(self.image_size[1])),
-                               flags=cv2.INTER_LINEAR)
+        input_t = cv2.warpAffine(input_numpy, trans, (int(self.image_size[0]), int(self.image_size[1])),
+                                 flags=cv2.INTER_LINEAR)
 
         if self.transform:
-            input = Image.fromarray(input)
-            input = self.transform(input)
+            input_t = Image.fromarray(input_t)
+            input_t = self.transform(input_t)
 
-        # joints_xyv [num_joints, k, 3]
+        # joints_xyv [num_joints, k, 5] -> (x0, y0, x1, y1, v)
         for i in range(self.num_joints):
             for k in range(joints_xyv.shape[1]):
-                if joints_xyv[i, k, 2] > 0:
+                if joints_xyv[i][k][4] > 0:
                     joints_xyv[i, k, 0:2] = affine_transform(joints_xyv[i, k, 0:2], trans)
+                    joints_xyv[i, k, 2:4] = affine_transform(joints_xyv[i, k, 2:4], trans)
 
-        target, target_weight = self.generate_target(joints_xyv)
+        target_heatmap, target_vector, tgt_indexes = self.generate_target(joints_xyv)
 
-        target = torch.from_numpy(target)
-        target_weight = torch.from_numpy(target_weight)
+        target_heatmap = torch.from_numpy(target_heatmap)
+        target_vector = torch.from_numpy(target_vector)
+        tgt_indexes = torch.from_numpy(tgt_indexes)
 
         meta = {
             'image': image_file,
@@ -114,7 +117,7 @@ class JointsDataset(Dataset):
             'joints_xyv': joints_xyv
         }
 
-        return input, target, target_weight, meta
+        return input_t, target_heatmap, target_vector, tgt_indexes, meta
 
     def select_data(self, db):
         db_selected = []
@@ -153,15 +156,17 @@ class JointsDataset(Dataset):
     def generate_target(self, joints_xyv):
         """k is the number of keypoints in each heatmap
 
-        :param joints_xyv:  [num_joints, k, 3]
-        :return: target  [num_joints, h, w]
-                 target_weight  [num_joints, idx] (1: visible, 0: invisible)
+        :param joints_xyv:  [num_joints, k, 5], k is the object number
+        :return: target_heatmap [num_joints, h, w]
+                 target_vector  [num_joints, k, 2]  (vx, vy) -> [-1, 1]
+                 target_indexes [num_joints, k]  idx are the peaks on heatmap
         """
-        target_weight = np.ones((self.num_joints, 1), dtype=np.float32)
+        target_vector = np.zeros((self.num_joints, joints_xyv.shape[1], 2), dtype=np.float32)
+        target_indexes = np.zeros((self.num_joints, joints_xyv.shape[1]), dtype=np.long)
 
         assert self.target_type == 'gaussian', 'Only support gaussian map now!'
 
-        target = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        target_heatmap = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
         tmp_size = self.sigma * 3
 
         for j in range(self.num_joints):
@@ -169,14 +174,11 @@ class JointsDataset(Dataset):
                 feat_stride = self.image_size / self.heatmap_size
                 mu_x = int(joints_xyv[j][k][0] / feat_stride[0] + 0.5)
                 mu_y = int(joints_xyv[j][k][1] / feat_stride[1] + 0.5)
+                target_indexes[j][k] = mu_x + mu_y * self.heatmap_size[0]
 
                 # Check that any part of the gaussian is in-bounds
                 ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
                 br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
-                if ul[0] >= self.heatmap_size[0] or ul[1] >= self.heatmap_size[1] or br[0] < 0 or br[1] < 0:
-                    # If not, just return the image as is
-                    target_weight[j] = 0
-                    continue
 
                 # Generate gaussian
                 size = 2 * tmp_size + 1
@@ -193,12 +195,26 @@ class JointsDataset(Dataset):
                 img_x = max(0, ul[0]), min(br[0], self.heatmap_size[0])
                 img_y = max(0, ul[1]), min(br[1], self.heatmap_size[1])
 
-                v = target_weight[j]
-                if v > 0.5:
-                    prev_val = target[j][img_y[0]:img_y[1], img_x[0]:img_x[1]]
-                    curr_val = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
-                    combined_val = np.maximum(prev_val, curr_val)
-                    # print(f'com {combined_val}')
-                    target[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
+                prev_val = target_heatmap[j][img_y[0]:img_y[1], img_x[0]:img_x[1]]
+                curr_val = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+                combined_val = np.maximum(prev_val, curr_val)
+                # print(f'com {combined_val}')
+                target_heatmap[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
 
-        return target, target_weight
+                dx = joints_xyv[j][k][2] - joints_xyv[j][k][0]
+                dy = joints_xyv[j][k][3] - joints_xyv[j][k][1]
+
+                if dy != 0 and dx != 0:
+                    vx = math.sqrt(1 / (1 + math.pow(dx, 2) / math.pow(dy, 2))) * (dx / math.fabs(dx))
+                    vy = math.sqrt(1 - math.pow(vx, 2)) * (dy / math.fabs(dy))
+                else:
+                    if dy == 0:
+                        vx = 1
+                        vy = 0
+                    else:
+                        vy = 1
+                        vx = 0
+
+                target_vector[j, k, :] = np.array([vx, vy])
+
+        return target_heatmap, target_vector, target_indexes

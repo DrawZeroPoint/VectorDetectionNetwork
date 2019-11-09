@@ -1,9 +1,71 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import torch
 import torch.nn as nn
-import json
+import torch.nn.functional as F
+
 import torchsnooper
+
+
+# @torchsnooper.snoop()
+def _gather_feat(feat, ind, mask=None):
+    """
+
+    :param feat: (b, 96*96, 2)  2 for vx, vy respectively
+    :param ind: (b, j, k)
+    :param mask: None
+    :return: (b, k, 2)
+    """
+    dim = feat.size(2)  # 2
+    ind = ind.squeeze(1)  # (b, k)
+    ind = ind.expand(ind.size(0), dim, ind.size(1))
+    feat = feat.permute(0, 2, 1)
+    feat = feat.gather(2, ind)
+    if mask is not None:
+        mask = mask.unsqueeze(2).expand_as(feat)
+        feat = feat[mask]
+        feat = feat.view(-1, dim)
+    return feat.permute(0, 2, 1)
+
+
+def _transpose_and_gather_feat(feat, ind):
+    feat = feat.permute(0, 2, 3, 1).contiguous()
+    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = _gather_feat(feat, ind)
+    return feat
+
+
+class RegL1Loss(nn.Module):
+    def __init__(self):
+        super(RegL1Loss, self).__init__()
+
+    def forward(self, out_vector, target_vector, tgt_indexes):
+        """
+        :param out_vector: torch.Size([b, 2, 96, 96])
+        :param tgt_indexes: torch.Size([b, 1, k])
+        :param target_vector: torch.Size([b, j, k, 2])
+        :return:
+        """
+        pred_vector = _transpose_and_gather_feat(out_vector, tgt_indexes)
+        loss = F.l1_loss(pred_vector, target_vector.squeeze(1), size_average=False)
+        loss = loss / (pred_vector.size(1) + 1e-4)
+        # print(f'---- Object number {pred_vector.size(1)} Loss {loss}')
+        return loss
+
+
+class NormRegL1Loss(nn.Module):
+    def __init__(self):
+        super(NormRegL1Loss, self).__init__()
+
+    def forward(self, output, mask, ind, target):
+        pred = _transpose_and_gather_feat(output, ind)
+        mask = mask.unsqueeze(2).expand_as(pred).float()
+        pred = pred / (target + 1e-4)
+        target = target * 0 + 1
+        loss = F.l1_loss(pred * mask, target * mask, size_average=False)
+        loss = loss / (mask.sum() + 1e-4)
+        return loss
 
 
 class JointsMSELoss(nn.Module):
@@ -13,28 +75,27 @@ class JointsMSELoss(nn.Module):
         self.use_target_weight = use_target_weight
 
     # @torchsnooper.snoop()
-    def forward(self, output, target, target_weight):
-        batch_size = output.size(0)
-        num_joints = output.size(1)
+    def forward(self, out_heatmap, target_heatmap):
+        """
+        :param out_heatmap: torch.Size([b, 1, 96, 96])
+        :param target_heatmap: torch.Size([b, 1, 96, 96])
+        :return:
+        """
+        batch_size = out_heatmap.size(0)
+        num_joints = out_heatmap.size(1)  # 1 by default
 
         '''
         Here split(1, 1) turns the tensor with dim (b_size, n_joints, w*h) to a tuple of tensor:
         (<(b_size, 1, w*h)>, ..., <(b_size, 1, w*h)>), which contains num_joints elements.
         '''
-        heatmaps_pred = output.reshape((batch_size, num_joints, -1)).split(1, 1)
-        heatmaps_gt = target.reshape((batch_size, num_joints, -1)).split(1, 1)
+        heatmaps_pred = out_heatmap.reshape((batch_size, num_joints, -1)).split(1, 1)
+        heatmaps_gt = target_heatmap.reshape((batch_size, num_joints, -1)).split(1, 1)
 
         loss = 0
         for j in range(num_joints):
             heatmap_pred = heatmaps_pred[j].squeeze()
             heatmap_gt = heatmaps_gt[j].squeeze()
-            
-            if self.use_target_weight:
-                loss += 0.5 * self.criterion(
-                    heatmap_pred.mul(target_weight[:, j]),
-                    heatmap_gt.mul(target_weight[:, j])
-                )
-            else:
-                loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)
+
+            loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)
 
         return loss / num_joints

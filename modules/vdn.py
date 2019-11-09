@@ -23,8 +23,9 @@ import torchvision.transforms as transforms
 import libs.core.config as lib_config
 from libs.core.config import get_model_name
 
-import libs.core.function as lib_function
+import libs.core.trainval as lib_function
 from libs.core.inference import get_final_preds
+
 import libs.core.loss as lib_loss
 
 import libs.utils.utils as lib_util
@@ -32,8 +33,7 @@ from libs.utils.transforms import get_affine_transform
 
 import libs.dataset as lib_dataset
 
-import libs.models.vdn_resnet as vdn_resnet
-# import libs.models.vdn_res2net as vdn_res2net
+import libs.models.vdn_model as vdn_model
 
 import utils.vis.util as vis_util
 from PIL import ImageDraw
@@ -58,10 +58,10 @@ class VectorDetectionNetwork:
         torch.backends.cudnn.enabled = lib_config.config.CUDNN.ENABLED
 
         if not train:
-            model = vdn_resnet.get_vdn_resnet(lib_config.config, is_train=False)
+            model = vdn_model.get_vdn_resnet(lib_config.config, is_train=False)
             model.load_state_dict({k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
         else:
-            model = vdn_resnet.get_vdn_resnet(lib_config.config, is_train=True)
+            model = vdn_model.get_vdn_resnet(lib_config.config, is_train=True)
 
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
@@ -79,7 +79,8 @@ class VectorDetectionNetwork:
         shutil.copy2(os.path.join(this_dir, '../libs/models', cfgs.MODEL.NAME + '.py'), final_output_dir)
 
         # define loss function (criterion) and optimizer
-        criterion = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
+        crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
+        crit_vector = lib_loss.RegL1Loss().cuda()
 
         optimizer = lib_util.get_optimizer(cfgs, self.model)
 
@@ -128,15 +129,16 @@ class VectorDetectionNetwork:
         best_perf = 0.0
         for epoch in range(cfgs.TRAIN.BEGIN_EPOCH, cfgs.TRAIN.END_EPOCH):
             # train for one epoch
-            lib_function.train(cfgs, train_loader, self.model, criterion, optimizer, epoch,
-                               final_output_dir, tb_log_dir)
+            lib_function.train(cfgs, train_loader, self.model, crit_heatmap, crit_vector,
+                               optimizer, epoch, final_output_dir)
 
             #  In PyTorch 1.1.0 and later, you should call optimizer.step() before lr_scheduler.step().
             lr_scheduler.step()
 
             # evaluate on validation set
             perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                                                   criterion, final_output_dir, tb_log_dir)
+                                                   crit_heatmap, crit_vector,
+                                                   final_output_dir, tb_log_dir)
 
             if perf_indicator > best_perf:
                 best_perf = perf_indicator

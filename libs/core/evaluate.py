@@ -52,7 +52,7 @@ def accuracy(output, targets):
                         dist = -1
                     dist_one_pred += dist
                 dist_all_pred += dist_one_pred
-            dists[c, n] = dist_all_pred
+            dists[n, c] = dist_all_pred
 
     acc = np.zeros((len(idx) + 1))
     avg_acc = 0

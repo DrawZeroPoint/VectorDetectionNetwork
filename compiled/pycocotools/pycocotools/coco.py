@@ -76,7 +76,9 @@ class COCO:
         if annotation_file is not None:
             print('loading annotations into memory...')
             tic = time.time()
-            dataset = json.load(open(annotation_file, 'r'))
+            with open(annotation_file, 'r') as df:
+                dataset = json.load(df)
+
             assert type(dataset) == dict, 'annotation file format {} not supported'.format(type(dataset))
             print('Done (t={:0.2f}s)'.format(time.time() - tic))
             self.dataset = dataset

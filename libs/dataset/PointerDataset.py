@@ -3,6 +3,7 @@
 
 import logging
 import os
+import math
 import pickle
 from collections import defaultdict
 from collections import OrderedDict
@@ -77,13 +78,7 @@ class PointerDataset(JointsDataset):
         return image_ids
 
     def _get_db(self):
-        if self.is_train or self.use_gt_bbox:
-            # use ground truth bbox
-            gt_db = self._load_coco_keypoint_annotations()
-        else:
-            # use bbox from detection
-            gt_db = self._load_coco_person_detection_results()
-        return gt_db
+        return self._load_coco_keypoint_annotations()
 
     def _load_coco_keypoint_annotations(self):
         """ ground truth bbox and keypoints """
@@ -127,36 +122,31 @@ class PointerDataset(JointsDataset):
         rec = []
         center, scale = self._box2cs(all_in_one_obj['clean_bbox'][:4])
 
-        for j in range(self.num_joints):
-            keys_of_joint_j = []
-            for k, obj in enumerate(objs):
-                cls = self._coco_ind_to_class_ind[obj['category_id']]
-                if cls != 1:
-                    raise ValueError('class not equal to 1')
+        # Using this method, we only have one joint
+        keys_of_joint = []
+        for k, obj in enumerate(objs):
+            cls = self._coco_ind_to_class_ind[obj['category_id']]
+            if cls != 1:
+                raise ValueError('class not equal to 1')
 
-                # Ignore objs without keypoints annotation
-                if max(obj['keypoints']) == 0:
-                    raise ValueError('no keypoint')
+            # Ignore objs without keypoints annotation
+            if max(obj['keypoints']) == 0:
+                raise ValueError('no keypoint')
 
-                x = obj['keypoints'][j * 3]
-                y = obj['keypoints'][j * 3 + 1]
-                vis = obj['keypoints'][j * 3 + 2]
+            x0 = obj['keypoints'][6]
+            y0 = obj['keypoints'][7]
+            x1 = obj['keypoints'][3]
+            y1 = obj['keypoints'][4]
+            vis = obj['keypoints'][2]
 
-                pt = np.array([x, y, vis])
-                keys_of_joint_j.append(pt)
+            pt = np.array([x0, y0, x1, y1, vis])
+            keys_of_joint.append(pt)
 
-            if j == 0:
-                p1s = np.array(keys_of_joint_j)
-            elif j == 1:
-                p2s = np.array(keys_of_joint_j)
-            else:
-                p3s = np.array(keys_of_joint_j)
+            p1s = np.array(keys_of_joint)
 
-        res = np.concatenate((np.expand_dims(p1s, 0), np.expand_dims(p2s, 0), np.expand_dims(p3s, 0)))
+        res = np.expand_dims(p1s, 0)
 
-        # joints [batch, num_joints, k, 3]
-        # joint_vis [batch, num_joints, k, 3]
-
+        # joints_xyv [num_joints, k, 5]
         rec.append({
             'image': self.image_path_from_index(index),
             'center': center,
@@ -202,49 +192,6 @@ class PointerDataset(JointsDataset):
         image_path = os.path.join(self.root, 'images', data_name, file_name)
 
         return image_path
-
-    def _load_coco_person_detection_results(self):
-        all_boxes = None
-        with open(self.bbox_file, 'r') as f:
-            all_boxes = json.load(f)
-
-        if not all_boxes:
-            logger.error('=> Load %s fail!' % self.bbox_file)
-            return None
-
-        logger.info('=> Total boxes: {}'.format(len(all_boxes)))
-
-        kpt_db = []
-        num_boxes = 0
-        for n_img in range(0, len(all_boxes)):
-            det_res = all_boxes[n_img]
-            if det_res['category_id'] != 1:
-                continue
-            img_name = self.image_path_from_index(det_res['image_id'])
-            box = det_res['bbox']
-            score = det_res['score']
-
-            if score < self.image_thre:
-                continue
-
-            num_boxes = num_boxes + 1
-
-            center, scale = self._box2cs(box)
-            joints_3d = np.zeros((self.num_joints, 3), dtype=np.float)
-            joints_3d_vis = np.ones(
-                (self.num_joints, 3), dtype=np.float)
-            kpt_db.append({
-                'image': img_name,
-                'center': center,
-                'scale': scale,
-                'score': score,
-                'joints_3d': joints_3d,
-                'joints_3d_vis': joints_3d_vis,
-            })
-
-        logger.info('=> Total boxes after filter low score@{}: {}'.format(
-            self.image_thre, num_boxes))
-        return kpt_db
 
     def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
         res_folder = os.path.join(output_dir, 'results')
