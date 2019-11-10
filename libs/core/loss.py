@@ -43,12 +43,12 @@ class RegL1Loss(nn.Module):
     def forward(self, out_vector, target_vector, tgt_indexes):
         """
         :param out_vector: torch.Size([b, 2, 96, 96])
-        :param tgt_indexes: torch.Size([b, j, k])
         :param target_vector: torch.Size([b, j, k, 2])
+        :param tgt_indexes: torch.Size([b, j, k])
         :return:
         """
-        pred_vector = _transpose_and_gather_feat(out_vector, tgt_indexes)
-        loss = F.l1_loss(pred_vector, target_vector.squeeze(1), size_average=False)
+        pred_vector = _transpose_and_gather_feat(out_vector, tgt_indexes)  # (b, k ,2)
+        loss = F.l1_loss(pred_vector, target_vector.squeeze(1), reduction='sum')
         loss = loss / (pred_vector.size(1) + 1e-4)
         # print(f'---- Object number {pred_vector.size(1)} Loss {loss}')
         return loss

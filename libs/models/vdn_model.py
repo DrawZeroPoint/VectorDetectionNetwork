@@ -156,9 +156,9 @@ class VDNModel(nn.Module):
         )
 
         self.final_layer_hm = nn.Conv2d(
-            in_channels=extra.NUM_DECONV_FILTERS[-1],
+            in_channels=extra.NUM_DECONV_FILTERS[-1],  # 256
             out_channels=cfg.MODEL.NUM_JOINTS,
-            kernel_size=extra.FINAL_CONV_KERNEL,
+            kernel_size=extra.FINAL_CONV_KERNEL,  # 1
             stride=1,
             padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0
         )
@@ -166,9 +166,9 @@ class VDNModel(nn.Module):
         self.final_layer_v = nn.Conv2d(
             in_channels=extra.NUM_DECONV_FILTERS[-1],
             out_channels=2,
-            kernel_size=1,
+            kernel_size=3,
             stride=1,
-            padding=0
+            padding=1
         )
 
 
@@ -311,7 +311,7 @@ resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
 
 
 def get_vdn_resnet(cfg, is_train, **kwargs):
-    num_layers = cfg.MODEL.EXTRA.NUM_LAYERS
+    num_layers = cfg.MODEL.EXTRA.NUM_LAYERS  # 50
     style = cfg.MODEL.STYLE
 
     block_class, layers = resnet_spec[num_layers]
