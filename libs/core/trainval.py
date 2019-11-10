@@ -140,7 +140,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
 
-            preds, maxvals = get_final_preds(config, out_heatmap.clone().cpu().numpy(), c, s)
+            # preds, maxvals = get_final_preds(config, out_heatmap.clone().cpu().numpy(), c, s)
 
             # all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
             # all_preds[idx:idx + num_images, :, 2:3] = maxvals

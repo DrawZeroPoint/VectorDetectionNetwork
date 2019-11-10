@@ -7,15 +7,15 @@ import numpy as np
 import torchvision
 import cv2
 
-from libs.core.inference import get_all_preds
+from libs.core.inference import get_all_joint_preds
 
 
-def save_batch_image_with_joints(batch_image, pred_j, pred_v, file_name, expand=1, nrow=8, padding=0):
+def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expand=1, nrow=8, padding=0):
     """
 
     :param batch_image:
-    :param pred_j: joints
-    :param pred_v: (k, 2)
+    :param joints: joints
+    :param orients: (k, 2)
     :param file_name:
     :param expand:
     :param nrow:
@@ -26,7 +26,7 @@ def save_batch_image_with_joints(batch_image, pred_j, pred_v, file_name, expand=
     ndarr = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
     ndarr = ndarr.copy()
 
-    if pred_v is None:
+    if orients is None:
         cv2.imwrite(file_name, ndarr)
         return
 
@@ -42,10 +42,10 @@ def save_batch_image_with_joints(batch_image, pred_j, pred_v, file_name, expand=
             if b >= nmaps:
                 break
 
-            joints = pred_j[b]
-            vectors = pred_v[b]
+            j = joints[b]
+            v = orients[b]
 
-            for joint_list, vec_list in zip(joints, vectors):
+            for joint_list, vec_list in zip(j, v):
                 for joint, vec in zip(joint_list, vec_list):
                     joint[0] *= expand
                     joint[1] *= expand
@@ -83,7 +83,7 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True):
 
     grid_image = np.zeros((batch_size * heatmap_height, (num_joints + 1) * heatmap_width, 3), dtype=np.uint8)
 
-    preds, _ = get_all_preds(batch_heatmaps.detach().cpu().numpy())
+    preds, _ = get_all_joint_preds(batch_heatmaps.detach().cpu().numpy())
 
     for i in range(batch_size):
         image = batch_image[i].mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
@@ -116,10 +116,13 @@ def save_debug_images(config, input, meta, target, pred_j, pred_v, output, prefi
     if not config.DEBUG.DEBUG:
         return
 
-    # if config.DEBUG.SAVE_BATCH_IMAGES_GT:
-    #     save_batch_image_with_joints(input, meta['joints_xyv'], '{}_gt.jpg'.format(prefix), expand=1)
+    if config.DEBUG.SAVE_BATCH_IMAGES_GT:
+        gt_j = meta['joints_xyv'][:, :, :, 0:2]
+        gt_v = meta['joints_xyv'][:, :, :, 2:4]
+        gt_o = gt_v - gt_j
+        save_batch_image_with_vectors(input, gt_j, gt_o, '{}_gt.jpg'.format(prefix), expand=1)
     if config.DEBUG.SAVE_BATCH_IMAGES_PRED:
-        save_batch_image_with_joints(input, pred_j, pred_v, '{}_pred.jpg'.format(prefix), expand=4)
+        save_batch_image_with_vectors(input, pred_j, pred_v, '{}_pred.jpg'.format(prefix), expand=4)
     if config.DEBUG.SAVE_HEATMAPS_GT:
         save_batch_heatmaps(input, target, '{}_hm_gt.jpg'.format(prefix))
     if config.DEBUG.SAVE_HEATMAPS_PRED:

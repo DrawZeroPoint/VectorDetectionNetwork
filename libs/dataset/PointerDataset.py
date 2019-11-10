@@ -135,8 +135,8 @@ class PointerDataset(JointsDataset):
 
             x0 = obj['keypoints'][6]
             y0 = obj['keypoints'][7]
-            x1 = obj['keypoints'][3]
-            y1 = obj['keypoints'][4]
+            x1 = obj['keypoints'][0]
+            y1 = obj['keypoints'][1]
             vis = obj['keypoints'][2]
 
             pt = np.array([x0, y0, x1, y1, vis])

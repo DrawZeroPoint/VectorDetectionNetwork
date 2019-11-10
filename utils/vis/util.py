@@ -104,7 +104,7 @@ def save_np_heatmaps(batch_heatmaps, file_name, is_max=True):
     if is_max:
         preds, maxvals = lib_inference.get_max_preds(batch_heatmaps)
     else:
-        preds, maxvals = lib_inference.get_all_preds(batch_heatmaps)
+        preds, maxvals = lib_inference.get_all_joint_preds(batch_heatmaps)
 
     for i in range(batch_size):
         heatmaps = np.clip(batch_heatmaps[i] * 255, 0, 255)
@@ -155,7 +155,7 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
     grid_image = np.zeros((batch_size * heatmap_height, (num_joints + 1) * heatmap_width, 3),
                           dtype=np.uint8)
 
-    preds, maxvals = lib_inference.get_all_preds(batch_heatmaps.detach().cpu().numpy())
+    preds, maxvals = lib_inference.get_all_joint_preds(batch_heatmaps.detach().cpu().numpy())
 
     for i in range(batch_size):
         image = batch_image[i].mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
@@ -197,14 +197,18 @@ def apply_dot(draw, xy_list, w, h, idx=0):
         draw.ellipse(ellipse_bbox, fill=color)
 
 
-def apply_line(draw, line, w, h, idx=0):
+def apply_line(draw, start_points, end_points, w, h, idx=0):
     """
     :param draw: PIL Draw
-    :param line: list -> [x, y, x, y]
+    :param start_points: [[x, y] ...]
+    :param end_points: [[x, y] ...]
     :param w: int
     :param h: int
     :param idx: int
     """
     color = STANDARD_COLORS[idx % NUM_COLORS]
-    draw.line(line, width=int(min(w, h) * 0.01), fill=color)
+
+    for sp, ep in zip(start_points, end_points):
+        line = [sp[0], sp[1], ep[0], ep[1]]
+        draw.line(line, width=int(min(w, h) * 0.01), fill=color)
 

@@ -32,8 +32,8 @@ import libs.utils.utils as lib_util
 from libs.utils.transforms import get_affine_transform
 
 import libs.dataset as lib_dataset
-
 import libs.models.vdn_model as vdn_model
+import libs.core.inference as lib_inference
 
 import utils.vis.util as vis_util
 from PIL import ImageDraw
@@ -196,22 +196,27 @@ class VectorDetectionNetwork:
 
         with torch.no_grad():
             # compute output heat map
-            output = model(net_input)
-            preds, maxvals = get_final_preds(cfgs, output.clone().cpu().numpy(),
-                                             np.asarray([center]), np.asarray([shape]))
-            print("points", preds[0], "\n", "score", maxvals)
+            output_hm, output_v = model(net_input)
+            preds_j, preds_v, maxvals = get_final_preds(output_hm.clone().cpu().numpy(),
+                                                        output_v.clone().cpu().numpy(),
+                                                        np.asarray([center]), np.asarray([shape]))
+
+            print("points", preds_j[0], "vectors", preds_v[0], "\n", "score", maxvals)
 
             if verbose:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
 
-                for i, point_list in enumerate(preds[0]):
+                for i, point_list in enumerate(preds_j[0]):
                     vis_util.apply_dot(draw, point_list, image_width, image_height, idx=i)
+                    p_start_array = point_list
+                    p_end_array = point_list + preds_v[0][i]
+                    vis_util.apply_line(draw, p_start_array, p_end_array, image_width, image_height, idx=i)
 
                 output_image = vis_util.pil_img_to_cv(roi_pil)
                 cv2.imwrite(os.path.join(root_dir, f'data/results/{verbose}_out.jpg'), output_image)
 
-                vis_util.save_batch_heatmaps(net_input, output,
+                vis_util.save_batch_heatmaps(net_input, output_hm,
                                              os.path.join(root_dir, f'data/results/{verbose}_hmap.jpg'))
 
-            return preds[0], maxvals[0]
+            return preds_j[0], maxvals[0]

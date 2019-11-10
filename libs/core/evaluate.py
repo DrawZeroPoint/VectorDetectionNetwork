@@ -36,8 +36,8 @@ def accuracy(heatmaps, vectormaps, targets):
     w = heatmaps.shape[3]
     idx = list(range(num_joints))
 
-    preds_joints, _ = lib_inference.get_all_preds(heatmaps)
-    targets, _ = lib_inference.get_all_preds(targets)
+    preds_joints, _ = lib_inference.get_all_joint_preds(heatmaps)
+    targets, _ = lib_inference.get_all_joint_preds(targets)
     # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
 
     norm = np.ones(2) * np.array([h, w]) / 10
@@ -60,21 +60,9 @@ def accuracy(heatmaps, vectormaps, targets):
                 dist_all_pred += dist_one_pred
             dists[n, c] = dist_all_pred
 
-    vectormaps = np.reshape(vectormaps, (vectormaps.shape[0], vectormaps.shape[1], -1))
     # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
 
-    if len(preds_joints.shape) == 4:
-        preds_idx = np.squeeze(preds_joints[:, :, :, 0] * preds_joints[:, :, :, 1], 1)  # (b, k)
-        # print(f'preds_idx {preds_idx.shape}')
-
-        vectormaps_t = torch.from_numpy(vectormaps)  # (b, 2, 96*96)
-        preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
-
-        preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
-        preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
-        preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
-    else:
-        preds_vector = None
+    preds_vector = lib_inference.get_all_orientation_preds(preds_joints, vectormaps)
 
     acc = np.zeros((len(idx) + 1))
     avg_acc = 0

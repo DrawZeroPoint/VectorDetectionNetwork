@@ -156,7 +156,7 @@ class JointsDataset(Dataset):
     def generate_target(self, joints_xyv):
         """k is the number of keypoints in each heatmap
 
-        :param joints_xyv:  [num_joints, k, 5], k is the object number
+        :param joints_xyv:  [num_joints, k, 5], k is the object number; 5 -> [x0, y0, x1, y1, vis]
         :return: target_heatmap [num_joints, h, w]
                  target_vector  [num_joints, k, 2]  (vx, vy) -> [-1, 1]
                  target_indexes [num_joints, k]  idx are the peaks on heatmap
@@ -174,6 +174,11 @@ class JointsDataset(Dataset):
                 feat_stride = self.image_size / self.heatmap_size
                 mu_x = int(joints_xyv[j][k][0] / feat_stride[0] + 0.5)
                 mu_y = int(joints_xyv[j][k][1] / feat_stride[1] + 0.5)
+
+                # for generating vectors
+                x1 = int(joints_xyv[j][k][2] / feat_stride[0] + 0.5)
+                y1 = int(joints_xyv[j][k][3] / feat_stride[1] + 0.5)
+
                 target_indexes[j][k] = mu_x + mu_y * self.heatmap_size[0]
 
                 # Check that any part of the gaussian is in-bounds
@@ -201,8 +206,8 @@ class JointsDataset(Dataset):
                 # print(f'com {combined_val}')
                 target_heatmap[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
 
-                dx = joints_xyv[j][k][2] - joints_xyv[j][k][0]
-                dy = joints_xyv[j][k][3] - joints_xyv[j][k][1]
+                dx = x1 - mu_y
+                dy = y1 - mu_y
 
                 if dy != 0 and dx != 0:
                     vx = math.sqrt(1 / (1 + math.pow(dx, 2) / math.pow(dy, 2))) * (dx / math.fabs(dx))

@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 import math
+import torch
 import torchsnooper
 import numpy as np
 import scipy.ndimage as ndimage
@@ -57,7 +58,7 @@ def get_peaks_by_local_maximum(heatmap):
 
 
 # @torchsnooper.snoop()
-def get_all_preds(batch_heatmaps):
+def get_all_joint_preds(batch_heatmaps):
     """Get predictions (n, c, k, 2), 2 for (x, y), from model output
 
     :param batch_heatmaps: numpy.ndarray([batch_size, num_joints, height, width])
@@ -86,6 +87,26 @@ def get_all_preds(batch_heatmaps):
         maxvals.append(joints_maxvals)
 
     return np.array(preds), maxvals
+
+
+def get_all_orientation_preds(pred_all_joints, vector_maps):
+    vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
+
+    if len(pred_all_joints.shape) == 4:
+        preds_idx = np.squeeze(pred_all_joints[:, :, :, 0] * pred_all_joints[:, :, :, 1], 1)  # (b, k)
+
+        vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)
+        preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
+
+        preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
+        # print(f'preds_idx_t {preds_idx_t.size()} {preds_idx_t} vectormap_t {vectormaps_t.size()}')
+
+        preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
+        preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
+    else:
+        preds_vector = None
+
+    return preds_vector
 
 
 def get_max_preds(batch_heatmaps):
@@ -118,15 +139,17 @@ def get_max_preds(batch_heatmaps):
 
 
 # @torchsnooper.snoop()
-def get_final_preds(config, batch_heatmaps, center, scale):
-    preds, maxvals = get_all_preds(batch_heatmaps)
-
+def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
     batch_sz = batch_heatmaps.shape[0]
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
 
+    preds_j, maxvals = get_all_joint_preds(batch_heatmaps)
+    preds_v = get_all_orientation_preds(preds_j, batch_vectormaps)
+
     # Transform back
     for i in range(batch_sz):
-        preds[i] = transform_preds(preds[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        preds_j[i] = transform_preds(preds_j[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        preds_v[i] = transform_preds(preds_v[i], center[i], scale[i], [heatmap_width, heatmap_height])
 
-    return preds, maxvals
+    return preds_j, preds_v, maxvals
