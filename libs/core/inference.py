@@ -39,10 +39,14 @@ def get_peaks_by_regions(heatmap):
 def get_peaks_by_local_maximum(heatmap):
     heatmap = img_as_float(heatmap)
 
-    # High pass filter on heatmap
-    heatmap[heatmap < np.max(heatmap * 0.5)] = 0
-    # TODO check the meaning of min_distance
-    coordinates = peak_local_max(heatmap, min_distance=20)
+    """
+    High pass filter on heatmap
+    min_distance for 2 adjacent points to be reduced as 1, because the heatmap is small,
+    we should have low min_distance to prevent points near the borders getting lost
+    """
+    coordinates = peak_local_max(heatmap, min_distance=10, threshold_rel=0.2)
+    if not np.any(coordinates) == 0:
+        print('------> get_peaks_by_local_maximum: peaks is empty')
 
     peaks = []
     peakvals = []
@@ -79,7 +83,7 @@ def get_all_joint_preds(batch_heatmaps):
             heatmap = batch_heatmaps[n, j, :]
 
             # Get all peaks (local maximum) within the heatmap
-            peaks, peakvals = get_peaks_by_local_maximum(heatmap)
+            peaks, peakvals = get_peaks_by_regions(heatmap)
 
             joints_peaks.append(peaks)
             joints_maxvals.append(peakvals)
@@ -98,6 +102,7 @@ def get_all_orientation_preds(pred_all_joints, vector_maps):
     elif len(pred_all_joints.shape) == 3 and pred_all_joints.shape[-1] != 0:
         preds_idx = pred_all_joints[:, :, 0] * pred_all_joints[:, :, 1]  # (b, k)
     else:
+        print('------> get_all_orientation_preds ', pred_all_joints.shape)
         return None
 
     vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)
