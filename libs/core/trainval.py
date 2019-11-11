@@ -46,7 +46,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
         v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
-        loss = j_loss + 0.0001 * v_loss
+        loss = j_loss + 0.001 * v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()

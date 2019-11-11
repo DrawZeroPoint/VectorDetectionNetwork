@@ -41,7 +41,8 @@ def get_peaks_by_local_maximum(heatmap):
 
     # High pass filter on heatmap
     heatmap[heatmap < np.max(heatmap * 0.5)] = 0
-    coordinates = peak_local_max(heatmap, min_distance=10)
+    # TODO check the meaning of min_distance
+    coordinates = peak_local_max(heatmap, min_distance=20)
 
     peaks = []
     peakvals = []
@@ -92,19 +93,21 @@ def get_all_joint_preds(batch_heatmaps):
 def get_all_orientation_preds(pred_all_joints, vector_maps):
     vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
 
-    if len(pred_all_joints.shape) == 4:
+    if len(pred_all_joints.shape) == 4 and pred_all_joints.shape[-1] != 0:
         preds_idx = np.squeeze(pred_all_joints[:, :, :, 0] * pred_all_joints[:, :, :, 1], 1)  # (b, k)
-
-        vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)
-        preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
-
-        preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
-        # print(f'preds_idx_t {preds_idx_t.size()} {preds_idx_t} vectormap_t {vectormaps_t.size()}')
-
-        preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
-        preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
+    elif len(pred_all_joints.shape) == 3 and pred_all_joints.shape[-1] != 0:
+        preds_idx = pred_all_joints[:, :, 0] * pred_all_joints[:, :, 1]  # (b, k)
     else:
-        preds_vector = None
+        return None
+
+    vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)
+    preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
+
+    preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
+    # print(f'preds_idx_t {preds_idx_t.size()} {preds_idx_t} vectormap_t {vectormaps_t.size()}')
+
+    preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
+    preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
 
     return preds_vector
 
@@ -150,6 +153,7 @@ def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
     # Transform back
     for i in range(batch_sz):
         preds_j[i] = transform_preds(preds_j[i], center[i], scale[i], [heatmap_width, heatmap_height])
-        preds_v[i] = transform_preds(preds_v[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        if preds_v is not None:
+            preds_v[i] = transform_preds(preds_v[i], center[i], scale[i], [heatmap_width, heatmap_height])
 
     return preds_j, preds_v, maxvals

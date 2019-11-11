@@ -39,7 +39,7 @@ class JointsDataset(Dataset):
 
         self.image_size = cfg.MODEL.IMAGE_SIZE
         self.target_type = cfg.MODEL.EXTRA.TARGET_TYPE
-        self.heatmap_size = cfg.MODEL.EXTRA.HEATMAP_SIZE
+        self.heatmap_size = cfg.MODEL.EXTRA.HEATMAP_SIZE  # w*h: 96 * 96
         self.sigma = cfg.MODEL.EXTRA.SIGMA
 
         self.transform = transform
@@ -50,6 +50,39 @@ class JointsDataset(Dataset):
 
     def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
         raise NotImplementedError
+
+    def select_data(self, db):
+        db_selected = []
+        for rec in db:
+            num_vis = 0
+            joints_x = 0.0
+            joints_y = 0.0
+            for joint, joint_vis in zip(
+                    rec['joints_3d'], rec['joints_3d_vis']):
+                if joint_vis[0] <= 0:
+                    continue
+                num_vis += 1
+
+                joints_x += joint[0]
+                joints_y += joint[1]
+            if num_vis == 0:
+                continue
+
+            joints_x, joints_y = joints_x / num_vis, joints_y / num_vis
+
+            area = rec['scale'][0] * rec['scale'][1] * (self.pixel_std**2)
+            joints_center = np.array([joints_x, joints_y])
+            bbox_center = np.array(rec['center'])
+            diff_norm2 = np.linalg.norm((joints_center-bbox_center), 2)
+            ks = np.exp(-1.0*(diff_norm2**2) / (0.2**2*2.0*area))
+
+            metric = (0.2 / 16) * num_vis + 0.45 - 0.2 / 16
+            if ks > metric:
+                db_selected.append(rec)
+
+        logger.info('=> num db: {}'.format(len(db)))
+        logger.info('=> num selected db: {}'.format(len(db_selected)))
+        return db_selected
 
     def __len__(self,):
         return len(self.db)
@@ -119,39 +152,6 @@ class JointsDataset(Dataset):
 
         return input_t, target_heatmap, target_vector, tgt_indexes, meta
 
-    def select_data(self, db):
-        db_selected = []
-        for rec in db:
-            num_vis = 0
-            joints_x = 0.0
-            joints_y = 0.0
-            for joint, joint_vis in zip(
-                    rec['joints_3d'], rec['joints_3d_vis']):
-                if joint_vis[0] <= 0:
-                    continue
-                num_vis += 1
-
-                joints_x += joint[0]
-                joints_y += joint[1]
-            if num_vis == 0:
-                continue
-
-            joints_x, joints_y = joints_x / num_vis, joints_y / num_vis
-
-            area = rec['scale'][0] * rec['scale'][1] * (self.pixel_std**2)
-            joints_center = np.array([joints_x, joints_y])
-            bbox_center = np.array(rec['center'])
-            diff_norm2 = np.linalg.norm((joints_center-bbox_center), 2)
-            ks = np.exp(-1.0*(diff_norm2**2) / (0.2**2*2.0*area))
-
-            metric = (0.2 / 16) * num_vis + 0.45 - 0.2 / 16
-            if ks > metric:
-                db_selected.append(rec)
-
-        logger.info('=> num db: {}'.format(len(db)))
-        logger.info('=> num selected db: {}'.format(len(db_selected)))
-        return db_selected
-
     # @torchsnooper.snoop()
     def generate_target(self, joints_xyv):
         """k is the number of keypoints in each heatmap
@@ -167,7 +167,7 @@ class JointsDataset(Dataset):
         assert self.target_type == 'gaussian', 'Only support gaussian map now!'
 
         target_heatmap = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
-        tmp_size = self.sigma * 3
+        tmp_size = self.sigma * 3  # 3*3
 
         for j in range(self.num_joints):
             for k in range(joints_xyv.shape[1]):
@@ -179,7 +179,7 @@ class JointsDataset(Dataset):
                 x1 = int(joints_xyv[j][k][2] / feat_stride[0] + 0.5)
                 y1 = int(joints_xyv[j][k][3] / feat_stride[1] + 0.5)
 
-                target_indexes[j][k] = mu_x + mu_y * self.heatmap_size[0]
+                target_indexes[j][k] = mu_x + mu_y * self.heatmap_size[1]
 
                 # Check that any part of the gaussian is in-bounds
                 ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]

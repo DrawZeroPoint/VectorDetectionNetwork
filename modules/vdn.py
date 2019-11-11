@@ -201,7 +201,7 @@ class VectorDetectionNetwork:
                                                         output_v.clone().cpu().numpy(),
                                                         np.asarray([center]), np.asarray([shape]))
 
-            print("points", preds_j[0], "vectors", preds_v[0], "\n", "score", maxvals)
+            # print("points", preds_j[0], "vectors", preds_v[0], "\n", "score", maxvals)
 
             if verbose:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
@@ -210,6 +210,8 @@ class VectorDetectionNetwork:
                 for i, point_list in enumerate(preds_j[0]):
                     vis_util.apply_dot(draw, point_list, image_width, image_height, idx=i)
                     p_start_array = point_list
+                    if preds_v is None:
+                        continue
                     p_end_array = point_list + preds_v[0][i]
                     vis_util.apply_line(draw, p_start_array, p_end_array, image_width, image_height, idx=i)
 

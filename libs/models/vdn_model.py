@@ -244,6 +244,8 @@ class VDNModel(nn.Module):
         x = self.deconv_layers(x)
         hm = self.final_layer_hm(x)
         v = self.final_layer_v(x)
+        # TODO: test this
+        v = v.sigmoid() - 0.5
 
         return hm, v
 
