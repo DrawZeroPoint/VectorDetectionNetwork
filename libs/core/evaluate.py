@@ -19,16 +19,17 @@ def dist_acc(dists, thr=0.5):
         return -1
 
 
-def accuracy(heatmaps, vectormaps, targets):
+def accuracy(heatmaps, vectormaps, gt_joints, target_vectormaps):
     """Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
     First value to be returned is average accuracy across 'idxs',
     followed by individual accuracies
     
-    :param heatmaps: 
-    :param vectormaps: (b, 2, 96, 96)
-    :param targets: 
-    :return: preds_joints (b, j, k, 2), 2 for x y; preds_vector (b, k, 2), 2 for vx vy
+    :param heatmaps: (b, j, h, w)
+    :param vectormaps: (b, 2, h, w)
+    :param gt_joints: (b, j, h, w)
+    :param target_vectormaps: (b, 2, h, w)
+    :return: pred_joints (b, j, k, 2), 2 for x y; pred_vectors (b, k, 2), 2 for vx vy
     """
     batch_sz = heatmaps.shape[0]
     num_joints = heatmaps.shape[1]
@@ -36,16 +37,16 @@ def accuracy(heatmaps, vectormaps, targets):
     w = heatmaps.shape[3]
     idx = list(range(num_joints))
 
-    preds_joints, _ = lib_inference.get_all_joint_preds(heatmaps)
-    targets, _ = lib_inference.get_all_joint_preds(targets)
-    # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
+    pred_joints, _ = lib_inference.get_all_joint_preds(heatmaps)
+    gt_joints, _ = lib_inference.get_all_joint_preds(gt_joints)
+    # print(f'pred_joints {pred_joints.shape}, target {targets.shape}')
 
     norm = np.ones(2) * np.array([h, w]) / 10
     dists = np.zeros((num_joints, batch_sz))
     for n in range(batch_sz):
         for c in range(num_joints):
-            preds_list = preds_joints[n][c]
-            targets_list = targets[n][c]
+            preds_list = pred_joints[n][c]
+            targets_list = gt_joints[n][c]
             dist_all_pred = 0
             for pred in preds_list:
                 dist_one_pred = 0
@@ -60,9 +61,10 @@ def accuracy(heatmaps, vectormaps, targets):
                 dist_all_pred += dist_one_pred
             dists[n, c] = dist_all_pred
 
-    # print(f'preds_joints {preds_joints.shape}, target {targets.shape}')
+    # print(f'pred_joints {pred_joints.shape}, target {targets.shape}')
 
-    preds_vector = lib_inference.get_all_orientation_preds(preds_joints, vectormaps)
+    pred_vectors = lib_inference.get_all_orientation_preds(pred_joints, vectormaps)
+    gt_vectors = lib_inference.get_all_orientation_preds(gt_joints, target_vectormaps)
 
     acc = np.zeros((len(idx) + 1))
     avg_acc = 0
@@ -77,4 +79,5 @@ def accuracy(heatmaps, vectormaps, targets):
     avg_acc = avg_acc / cnt if cnt != 0 else 0
     if cnt != 0:
         acc[0] = avg_acc
-    return acc, avg_acc, cnt, preds_joints, preds_vector
+
+    return acc, avg_acc, cnt, pred_joints, pred_vectors, gt_vectors

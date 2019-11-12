@@ -10,7 +10,6 @@ import torch
 
 from libs.core.config import get_model_name
 from libs.core.evaluate import accuracy
-from libs.core.inference import get_final_preds
 from libs.utils.vis import save_debug_images
 
 
@@ -28,7 +27,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
     model.train()
 
     end = time.time()
-    for i, (input, target_heatmap, target_vector, tgt_indexes, meta) in enumerate(train_loader):
+    for i, (input, target_heatmap, target_vectormap, meta) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -37,15 +36,14 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
         # Set non_blocking=True is the standard operation before BP
         target_heatmap = target_heatmap.cuda(non_blocking=True)
-        target_vector = target_vector.cuda(non_blocking=True)
-        tgt_indexes = tgt_indexes.cuda(non_blocking=True)
+        target_vectormap = target_vectormap.cuda(non_blocking=True)
 
         # print(f'shape of outheatmap {out_heatmap.shape}, out_vector {out_vector.shape},'
         #       f'target_heatmap {target_heatmap.shape}, target_vector {target_vector.shape},'
         #       f'tgt_indexes {tgt_indexes.shape}')
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
-        v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
+        v_loss = crit_vector(out_vector, target_vectormap)
         loss = j_loss + (0.0001 + epoch * 0.001 / 200.) * v_loss
 
         # compute gradient and do update step
@@ -56,9 +54,12 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
-        _, avg_acc, cnt, pred_j, pred_v = accuracy(out_heatmap.detach().cpu().numpy(),
-                                                   out_vector.detach().cpu().numpy(),
-                                                   target_heatmap.detach().cpu().numpy())
+        _, avg_acc, cnt, pred_j, pred_v, gt_v = accuracy(
+            out_heatmap.detach().cpu().numpy(),
+            out_vector.detach().cpu().numpy(),
+            target_heatmap.detach().cpu().numpy(),
+            target_vectormap.squeeze(1).detach().cpu().numpy()  # reduce the joint dim (=1)
+        )
 
         acc.update(avg_acc, cnt)
 
@@ -85,7 +86,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                 writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+            save_debug_images(config, input, meta, target_heatmap, pred_j, gt_v, out_heatmap, prefix)
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, tb_log_dir):
@@ -109,26 +110,28 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
         all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32)
         all_boxes = np.zeros((num_samples, 6))
 
-        for i, (input, target_heatmap, target_vector, tgt_indexes, meta) in enumerate(val_loader):
+        for i, (input, target_heatmap, target_vectormap, meta) in enumerate(val_loader):
             
             # compute output
             out_heatmap, out_vector = model(input)
 
             target_heatmap = target_heatmap.cuda(non_blocking=True)
-            target_vector = target_vector.cuda(non_blocking=True)
-            tgt_indexes = tgt_indexes.cuda(non_blocking=True)
+            target_vectormap = target_vectormap.cuda(non_blocking=True)
 
             j_loss = crit_heatmap(out_heatmap, target_heatmap)
-            v_loss = crit_vector(out_vector, target_vector, tgt_indexes)
+            v_loss = crit_vector(out_vector, target_vectormap)
             loss = j_loss + v_loss
 
             num_images = input.size(0)
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
 
-            _, avg_acc, cnt, pred_j, pred_v = accuracy(out_heatmap.detach().cpu().numpy(),
-                                                       out_vector.detach().cpu().numpy(),
-                                                       target_heatmap.detach().cpu().numpy())
+            _, avg_acc, cnt, pred_j, pred_v, gt_v = accuracy(
+                out_heatmap.detach().cpu().numpy(),
+                out_vector.detach().cpu().numpy(),
+                target_heatmap.detach().cpu().numpy(),
+                target_vectormap.squeeze(1).detach().cpu().numpy()  # reduce the joint dim (=1)
+            )
 
             acc.update(avg_acc, cnt)
 

@@ -58,13 +58,14 @@ class NormRegL1Loss(nn.Module):
     def __init__(self):
         super(NormRegL1Loss, self).__init__()
 
-    def forward(self, output, mask, ind, target):
-        pred = _transpose_and_gather_feat(output, ind)
-        mask = mask.unsqueeze(2).expand_as(pred).float()
-        pred = pred / (target + 1e-4)
-        target = target * 0 + 1
-        loss = F.l1_loss(pred * mask, target * mask, size_average=False)
-        loss = loss / (mask.sum() + 1e-4)
+    def forward(self, output, target):
+        """
+
+        :param output: [b, 2, 96, 96]
+        :param target: [b, j, 2, 96, 96]
+        :return:
+        """
+        loss = F.l1_loss(output, target.squeeze(1))
         return loss
 
 

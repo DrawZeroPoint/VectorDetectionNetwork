@@ -28,7 +28,7 @@ def get_peaks_by_regions(heatmap):
         row = int(centroid[0] + 0.5)
         col = int(centroid[1] + 0.5)
 
-        peak = np.array([col, row])
+        peak = np.array([col, row])  # x, y
         peaks.append(peak)
         peak_val = heatmap[row, col]
         peakvals.append(peak_val)
@@ -95,14 +95,26 @@ def get_all_joint_preds(batch_heatmaps):
 
 
 def get_all_orientation_preds(pred_all_joints, vector_maps):
+    """
+
+    :param pred_all_joints: (b, j, k, 2), Notice that for the last dim, 2 values are x and y, not h and w
+    :param vector_maps:
+    :return: ndarray (b, j, k, 2)
+    """
+    vector_map_width = vector_maps.shape[3]
     vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
 
     if len(pred_all_joints.shape) == 4 and pred_all_joints.shape[-1] != 0:
-        preds_idx = np.squeeze(pred_all_joints[:, :, :, 0] * pred_all_joints[:, :, :, 1], 1)  # (b, k)
+        x = pred_all_joints[:, :, :, 0]
+        y = pred_all_joints[:, :, :, 1]
+        idx = x + y * vector_map_width
+        preds_idx = np.squeeze(idx, 1)  # (b, k)
     elif len(pred_all_joints.shape) == 3 and pred_all_joints.shape[-1] != 0:
-        preds_idx = pred_all_joints[:, :, 0] * pred_all_joints[:, :, 1]  # (b, k)
+        x = pred_all_joints[:, :, 0]
+        y = pred_all_joints[:, :, 1]
+        idx = x + y * vector_map_width
+        preds_idx = idx  # (b, k)
     else:
-        print('------> get_all_orientation_preds ', pred_all_joints.shape)
         return None
 
     vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)

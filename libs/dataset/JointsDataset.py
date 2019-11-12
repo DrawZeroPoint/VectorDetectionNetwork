@@ -133,11 +133,10 @@ class JointsDataset(Dataset):
                     joints_xyv[i, k, 0:2] = affine_transform(joints_xyv[i, k, 0:2], trans)
                     joints_xyv[i, k, 2:4] = affine_transform(joints_xyv[i, k, 2:4], trans)
 
-        target_heatmap, target_vector, tgt_indexes = self.generate_target(joints_xyv)
+        target_heatmap, target_vectormap = self.generate_target(joints_xyv)
 
         target_heatmap = torch.from_numpy(target_heatmap)
-        target_vector = torch.from_numpy(target_vector)
-        tgt_indexes = torch.from_numpy(tgt_indexes)
+        target_vectormap = torch.from_numpy(target_vectormap)
 
         meta = {
             'image': image_file,
@@ -150,7 +149,7 @@ class JointsDataset(Dataset):
             'joints_xyv': joints_xyv
         }
 
-        return input_t, target_heatmap, target_vector, tgt_indexes, meta
+        return input_t, target_heatmap, target_vectormap, meta
 
     # @torchsnooper.snoop()
     def generate_target(self, joints_xyv):
@@ -158,15 +157,13 @@ class JointsDataset(Dataset):
 
         :param joints_xyv:  [num_joints, k, 5], k is the object number; 5 -> [x0, y0, x1, y1, vis]
         :return: target_heatmap [num_joints, h, w]
-                 target_vector  [num_joints, k, 2]  (vx, vy) -> [-1, 1]
-                 target_indexes [num_joints, k]  idx are the peaks on heatmap
+                 target_vectormap  [num_joints, 2, h, w]  (vx, vy) -> [-1, 1]
         """
-        target_vector = np.zeros((self.num_joints, joints_xyv.shape[1], 2), dtype=np.float32)
-        target_indexes = np.zeros((self.num_joints, joints_xyv.shape[1]), dtype=np.long)
-
         assert self.target_type == 'gaussian', 'Only support gaussian map now!'
 
         target_heatmap = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        target_vectormap = np.zeros((self.num_joints, 2, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+
         tmp_size = self.sigma * 3  # 3*3
 
         for j in range(self.num_joints):
@@ -178,8 +175,6 @@ class JointsDataset(Dataset):
                 # for generating vectors
                 x1 = int(joints_xyv[j][k][2] / feat_stride[0] + 0.5)
                 y1 = int(joints_xyv[j][k][3] / feat_stride[1] + 0.5)
-
-                target_indexes[j][k] = mu_x + mu_y * self.heatmap_size[1]
 
                 # Check that any part of the gaussian is in-bounds
                 ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
@@ -196,6 +191,7 @@ class JointsDataset(Dataset):
                 # Usable gaussian range
                 g_x = max(0, -ul[0]), min(br[0], self.heatmap_size[0]) - ul[0]
                 g_y = max(0, -ul[1]), min(br[1], self.heatmap_size[1]) - ul[1]
+
                 # Image range
                 img_x = max(0, ul[0]), min(br[0], self.heatmap_size[0])
                 img_y = max(0, ul[1]), min(br[1], self.heatmap_size[1])
@@ -206,20 +202,14 @@ class JointsDataset(Dataset):
                 # print(f'com {combined_val}')
                 target_heatmap[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
 
-                dx = x1 - mu_y
+                dx = x1 - mu_x
                 dy = y1 - mu_y
 
-                if dy != 0 and dx != 0:
-                    vx = math.sqrt(1 / (1 + math.pow(dx, 2) / math.pow(dy, 2))) * (dx / math.fabs(dx))
-                    vy = math.sqrt(1 - math.pow(vx, 2)) * (dy / math.fabs(dy))
-                else:
-                    if dy == 0:
-                        vx = 1
-                        vy = 0
-                    else:
-                        vy = 1
-                        vx = 0
+                dl = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
+                vx = dx / dl
+                vy = dy / dl
 
-                target_vector[j, k, :] = np.array([vx, vy])
+                target_vectormap[j][0][img_y[0]:img_y[1], img_x[0]:img_x[1]] = vx
+                target_vectormap[j][1][img_y[0]:img_y[1], img_x[0]:img_x[1]] = vy
 
-        return target_heatmap, target_vector, target_indexes
+        return target_heatmap, target_vectormap
