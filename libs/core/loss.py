@@ -69,6 +69,21 @@ class NormRegL1Loss(nn.Module):
         return loss
 
 
+class RegL2Loss(nn.Module):
+    def __init__(self):
+        super(RegL2Loss, self).__init__()
+
+    def forward(self, output, target):
+        """
+
+        :param output: [b, 2, h, w]
+        :param target: [b, j, 2, h, w]
+        :return:
+        """
+        loss = F.mse_loss(output, target.squeeze(1))
+        return loss
+
+
 class JointsMSELoss(nn.Module):
     def __init__(self, use_target_weight):
         super(JointsMSELoss, self).__init__()

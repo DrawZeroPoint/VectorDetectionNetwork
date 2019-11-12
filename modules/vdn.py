@@ -80,7 +80,7 @@ class VectorDetectionNetwork:
 
         # define loss function (criterion) and optimizer
         crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
-        crit_vector = lib_loss.NormRegL1Loss().cuda()
+        crit_vector = lib_loss.RegL2Loss().cuda()
 
         optimizer = lib_util.get_optimizer(cfgs, self.model)
 
