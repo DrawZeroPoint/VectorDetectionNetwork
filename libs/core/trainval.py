@@ -44,7 +44,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
         v_loss = crit_vector(out_vector, target_vectormap)
-        loss = j_loss + (0.0001 + epoch * 0.001 / 200.) * v_loss
+        loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -86,7 +86,8 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                 writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target_heatmap, pred_j, gt_v, out_heatmap, prefix)
+            save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+            print('gt_v ', gt_v, ' pred_v ', pred_v)
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, tb_log_dir):

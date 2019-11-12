@@ -15,7 +15,7 @@ def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expan
 
     :param batch_image:
     :param joints: joints
-    :param orients: (k, 2)
+    :param orients: (b, k, 2)
     :param file_name:
     :param expand:
     :param nrow:
@@ -44,7 +44,6 @@ def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expan
 
             j = joints[b]
             v = orients[b]
-
             for joint_list, vec_list in zip(j, v):
                 for joint, vec in zip(joint_list, vec_list):
                     joint[0] *= expand
@@ -58,6 +57,7 @@ def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expan
                     cv2.circle(ndarr, (px, py), 2, [0, 255, 0], 2)
                     cv2.line(ndarr, (px, py), (px + vx, py + vy), (0, 255, 0), 3)
             b += 1
+
     cv2.imwrite(file_name, ndarr)
 
 

@@ -13,7 +13,7 @@ config.LOG_DIR = ''
 config.DATA_DIR = ''
 config.GPUS = '0'
 config.WORKERS = 4
-config.PRINT_FREQ = 100
+config.PRINT_FREQ = 50
 
 # Cudnn related params
 config.CUDNN = edict()

@@ -19,15 +19,11 @@ def dist_acc(dists, thr=0.5):
         return -1
 
 
-def accuracy(heatmaps, vectormaps, gt_joints, target_vectormaps):
-    """Calculate accuracy according to PCK,
-    but uses ground truth heatmap rather than x,y locations
-    First value to be returned is average accuracy across 'idxs',
-    followed by individual accuracies
-    
+def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
+    """
     :param heatmaps: (b, j, h, w)
     :param vectormaps: (b, 2, h, w)
-    :param gt_joints: (b, j, h, w)
+    :param target_heatmaps: (b, j, h, w)
     :param target_vectormaps: (b, 2, h, w)
     :return: pred_joints (b, j, k, 2), 2 for x y; pred_vectors (b, k, 2), 2 for vx vy
     """
@@ -38,7 +34,7 @@ def accuracy(heatmaps, vectormaps, gt_joints, target_vectormaps):
     idx = list(range(num_joints))
 
     pred_joints, _ = lib_inference.get_all_joint_preds(heatmaps)
-    gt_joints, _ = lib_inference.get_all_joint_preds(gt_joints)
+    gt_joints, _ = lib_inference.get_all_joint_preds(target_heatmaps)
     # print(f'pred_joints {pred_joints.shape}, target {targets.shape}')
 
     norm = np.ones(2) * np.array([h, w]) / 10

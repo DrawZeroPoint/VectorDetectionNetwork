@@ -202,14 +202,20 @@ class JointsDataset(Dataset):
                 # print(f'com {combined_val}')
                 target_heatmap[j][img_y[0]:img_y[1], img_x[0]:img_x[1]] = combined_val
 
-                dx = x1 - mu_x
-                dy = y1 - mu_y
+                dx = mu_x - x1
+                dy = mu_y - y1
 
                 dl = math.sqrt(math.pow(dx, 2) + math.pow(dy, 2))
                 vx = dx / dl
                 vy = dy / dl
 
-                target_vectormap[j][0][img_y[0]:img_y[1], img_x[0]:img_x[1]] = vx
-                target_vectormap[j][1][img_y[0]:img_y[1], img_x[0]:img_x[1]] = vy
+                # If due to joints adjacent, two or more vectormap overlapped, calculate the mean value
+                prev_vx = target_vectormap[j][0][img_y[0]:img_y[1], img_x[0]:img_x[1]]
+                target_vectormap[j][0][img_y[0]:img_y[1], img_x[0]:img_x[1]] = np.where(prev_vx == 0, vx,
+                                                                                        (prev_vx + vx) * 0.5)
+
+                prev_vy = target_vectormap[j][1][img_y[0]:img_y[1], img_x[0]:img_x[1]]
+                target_vectormap[j][1][img_y[0]:img_y[1], img_x[0]:img_x[1]] = np.where(prev_vy == 0, vy,
+                                                                                        (prev_vy + vy) * 0.5)
 
         return target_heatmap, target_vectormap

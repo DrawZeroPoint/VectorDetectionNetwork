@@ -98,7 +98,7 @@ def get_all_orientation_preds(pred_all_joints, vector_maps):
     """
 
     :param pred_all_joints: (b, j, k, 2), Notice that for the last dim, 2 values are x and y, not h and w
-    :param vector_maps:
+    :param vector_maps: (b, 2, h, w)
     :return: ndarray (b, j, k, 2)
     """
     vector_map_width = vector_maps.shape[3]
