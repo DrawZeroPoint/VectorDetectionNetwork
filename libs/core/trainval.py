@@ -54,7 +54,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         # measure accuracy and record loss
         losses.update(loss.item(), input.size(0))
 
-        _, avg_acc, cnt, pred_j, pred_v, gt_v = accuracy(
+        _, avg_acc, cnt, pred_j, pred_v = accuracy(
             out_heatmap.detach().cpu().numpy(),
             out_vector.detach().cpu().numpy(),
             target_heatmap.detach().cpu().numpy(),
@@ -87,7 +87,6 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
             save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
-            print('gt_v ', gt_v, ' pred_v ', pred_v)
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, tb_log_dir):
@@ -127,7 +126,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # measure accuracy and record loss
             losses.update(loss.item(), num_images)
 
-            _, avg_acc, cnt, pred_j, pred_v, gt_v = accuracy(
+            _, avg_acc, cnt, pred_j, pred_v = accuracy(
                 out_heatmap.detach().cpu().numpy(),
                 out_vector.detach().cpu().numpy(),
                 target_heatmap.detach().cpu().numpy(),
