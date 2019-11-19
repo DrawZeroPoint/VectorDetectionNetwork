@@ -165,7 +165,7 @@ class VectorDetectionNetwork:
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
 
         :param roi_image: 
-        :param verbose: 
+        :param verbose: if >0, save result image with id=verbose
         :return:
         """
         model = self.model
@@ -197,23 +197,18 @@ class VectorDetectionNetwork:
         with torch.no_grad():
             # compute output heat map
             output_hm, output_v = model(net_input)
-            preds_j, preds_v, maxvals = get_final_preds(output_hm.clone().cpu().numpy(),
-                                                        output_v.clone().cpu().numpy(),
-                                                        np.asarray([center]), np.asarray([shape]))
+            preds_start, preds_end, maxvals = get_final_preds(output_hm.clone().cpu().numpy(),
+                                                              output_v.clone().cpu().numpy(),
+                                                              np.asarray([center]), np.asarray([shape]))
 
-            # print("points", preds_j[0], "vectors", preds_v[0], "\n", "score", maxvals)
-
+            # print("points", preds_start[0], "vectors", preds_end[0], "\n", "score", maxvals)
             if verbose:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
 
-                for i, point_list in enumerate(preds_j[0]):
-                    vis_util.apply_dot(draw, point_list, image_width, image_height, idx=i)
-                    p_start_array = point_list
-                    if preds_v is None:
-                        continue
-                    p_end_array = point_list + preds_v[0][i]
-                    vis_util.apply_line(draw, p_start_array, p_end_array, image_width, image_height, idx=i)
+                for i, (start_points, end_points) in enumerate(zip(preds_start, preds_end)):
+                    vis_util.apply_dot(draw, start_points, image_width, image_height, idx=i)
+                    vis_util.apply_line(draw, start_points, end_points, image_width, image_height, idx=i)
 
                 output_image = vis_util.pil_img_to_cv(roi_pil)
                 cv2.imwrite(os.path.join(root_dir, f'data/results/{verbose}_out.jpg'), output_image)
@@ -221,4 +216,4 @@ class VectorDetectionNetwork:
                 vis_util.save_batch_heatmaps(net_input, output_hm,
                                              os.path.join(root_dir, f'data/results/{verbose}_hmap.jpg'))
 
-            return preds_j[0], maxvals[0]
+            return preds_start, preds_end, maxvals

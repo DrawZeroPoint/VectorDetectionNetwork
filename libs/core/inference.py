@@ -39,14 +39,14 @@ def get_peaks_by_regions(heatmap):
 def get_peaks_by_local_maximum(heatmap):
     heatmap = img_as_float(heatmap)
 
-    """
+    """Peaks are the local maxima in a region of 2*min_distance+1
     High pass filter on heatmap
     min_distance for 2 adjacent points to be reduced as 1, because the heatmap is small,
     we should have low min_distance to prevent points near the borders getting lost
     """
-    coordinates = peak_local_max(heatmap, min_distance=10, threshold_rel=0.2)
-    if not np.any(coordinates) == 0:
-        print('------> get_peaks_by_local_maximum: peaks is empty')
+    coordinates = peak_local_max(heatmap, min_distance=10, threshold_rel=0.1)
+    if not list(coordinates):
+        print('------> get_peaks_by_local_maximum: no peak')
 
     peaks = []
     peakvals = []
@@ -83,7 +83,7 @@ def get_all_joint_preds(batch_heatmaps):
             heatmap = batch_heatmaps[n, j, :]
 
             # Get all peaks (local maximum) within the heatmap
-            peaks, peakvals = get_peaks_by_regions(heatmap)
+            peaks, peakvals = get_peaks_by_local_maximum(heatmap)
 
             joints_peaks.append(peaks)
             joints_maxvals.append(peakvals)
@@ -164,13 +164,14 @@ def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
 
-    preds_j, maxvals = get_all_joint_preds(batch_heatmaps)
-    preds_v = get_all_orientation_preds(preds_j, batch_vectormaps)
+    # preds_start (b, j, k, 2)
+    preds_start, maxvals = get_all_joint_preds(batch_heatmaps)
+    preds_v = get_all_orientation_preds(preds_start, batch_vectormaps)
 
     # Transform back
+    preds_end = preds_start + preds_v * 100.
     for i in range(batch_sz):
-        preds_j[i] = transform_preds(preds_j[i], center[i], scale[i], [heatmap_width, heatmap_height])
-        if preds_v is not None:
-            preds_v[i] = transform_preds(preds_v[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        preds_start[i] = transform_preds(preds_start[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        preds_end[i] = transform_preds(preds_end[i], center[i], scale[i], [heatmap_width, heatmap_height])
 
-    return preds_j, preds_v, maxvals
+    return preds_start[0], preds_end[0], maxvals[0]

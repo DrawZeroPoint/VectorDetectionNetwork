@@ -1,5 +1,5 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/weights/output1'
+OUTPUT_DIR: '/VDN/weights/output2'
 LOG_DIR: '/VDN/logs'
 WORKERS: 1
 
