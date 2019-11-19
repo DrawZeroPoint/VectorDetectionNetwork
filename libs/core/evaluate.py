@@ -29,16 +29,10 @@ def get_dist(pred_list, tgt_list, norm):
     pair_dists = np.zeros((pred_len, gt_len))
 
     for row, pred in enumerate(pred_list):
-        dist_one_pred = 0
         for col, target in enumerate(tgt_list):
-            if target[0] > 1 and target[1] > 1:
-                normed_pred_joint = pred / norm
-                normed_gt_joint = target / norm
-                dist = np.linalg.norm(normed_pred_joint - normed_gt_joint)
-            else:
-                dist = -1
-
-            dist_one_pred += dist
+            normed_pred_joint = pred / norm
+            normed_gt_joint = target / norm
+            dist = np.linalg.norm(normed_pred_joint - normed_gt_joint)
             pair_dists[row, col] = dist
 
     # Get the lowest cost with hungarian algorithm
@@ -71,8 +65,8 @@ def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
 
     norm_j = np.ones(2) * np.array([h, w]) / 10
     norm_v = np.ones(2)
-    dists_j = np.zeros((num_joints, batch_sz))  # (j, b)
-    dists_v = np.zeros((num_joints, batch_sz))
+    dists_j = np.ones((num_joints, batch_sz)) * -1.  # (j, b)
+    dists_v = np.ones((num_joints, batch_sz)) * -1.
 
     for n in range(batch_sz):
         for c in range(num_joints):
@@ -80,7 +74,7 @@ def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
             gt_joint_list = gt_joints[n][c]
             dists_j[n, c] = get_dist(pred_joint_list, gt_joint_list, norm_j)
 
-            if pred_vectors is not None:
+            if pred_vectors is not None and gt_vectors is not None:
                 pred_vector_list = pred_vectors[n][c]
                 gt_vector_list = gt_vectors[n][c]
                 dists_v[n, c] = get_dist(pred_vector_list, gt_vector_list, norm_v)
@@ -92,7 +86,7 @@ def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
     cnt = 0
 
     for i in range(len(idx)):
-        acc[i + 1] = (dist_acc(dists_j[idx[i]]) + dist_acc(dists_v[idx[i]]))
+        acc[i + 1] = (dist_acc(dists_j[idx[i]]) + dist_acc(dists_v[idx[i]])) * 0.5
         if acc[i + 1] >= 0:
             avg_acc = avg_acc + acc[i + 1]
             cnt += 1
