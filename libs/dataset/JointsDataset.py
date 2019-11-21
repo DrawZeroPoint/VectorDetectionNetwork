@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class JointsDataset(Dataset):
     def __init__(self, cfg, root, image_set, is_train, transform=None):
-        self.num_joints = 1
+        self.joint_num = 1
         self.pixel_std = 200
         self.flip_pairs = []
         self.parent_ids = []
@@ -48,7 +48,7 @@ class JointsDataset(Dataset):
     def _get_db(self):
         raise NotImplementedError
 
-    def evaluate(self, cfg, preds, output_dir, *args, **kwargs):
+    def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
         raise NotImplementedError
 
     def select_data(self, db):
@@ -127,7 +127,7 @@ class JointsDataset(Dataset):
             input_t = self.transform(input_t)
 
         # joints_xyv [num_joints, k, 5] -> (x0, y0, x1, y1, v)
-        for i in range(self.num_joints):
+        for i in range(self.joint_num):
             for k in range(joints_xyv.shape[1]):
                 if joints_xyv[i][k][4] > 0:
                     joints_xyv[i, k, 0:2] = affine_transform(joints_xyv[i, k, 0:2], trans)
@@ -161,12 +161,12 @@ class JointsDataset(Dataset):
         """
         assert self.target_type == 'gaussian', 'Only support gaussian map now!'
 
-        target_heatmap = np.zeros((self.num_joints, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
-        target_vectormap = np.zeros((self.num_joints, 2, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        target_heatmap = np.zeros((self.joint_num, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
+        target_vectormap = np.zeros((self.joint_num, 2, self.heatmap_size[1], self.heatmap_size[0]), dtype=np.float32)
 
         tmp_size = self.sigma * 3  # 3*3
 
-        for j in range(self.num_joints):
+        for j in range(self.joint_num):
             for k in range(joints_xyv.shape[1]):
                 feat_stride = self.image_size / self.heatmap_size
                 mu_x = int(joints_xyv[j][k][0] / feat_stride[0] + 0.5)

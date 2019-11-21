@@ -186,10 +186,7 @@ def get_model_name(cfg):
     name = cfg.MODEL.NAME
     extra = cfg.MODEL.EXTRA
 
-    name = '{model}_{num_layers}'.format(
-        model=name,
-        num_layers=extra.NUM_LAYERS)
-
+    name = '{model}_{num_layers}'.format(model=name, num_layers=extra.NUM_LAYERS)
     deconv_suffix = ''.join('d{}'.format(num_filters) for num_filters in extra.NUM_DECONV_FILTERS)
 
     full_name = '{height}x{width}_{name}_{deconv_suffix}'.format(

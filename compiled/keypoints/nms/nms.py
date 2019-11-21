@@ -93,6 +93,7 @@ def oks_iou(g, d, a_g, a_d, sigmas=None, in_vis_thre=None):
         ious[n_d] = np.sum(np.exp(-e)) / e.shape[0] if e.shape[0] != 0 else 0.0
     return ious
 
+
 def oks_nms(kpts_db, thresh, sigmas=None, in_vis_thre=None):
     """
     greedily select boxes with high confidence and overlap with current maximum <= thresh

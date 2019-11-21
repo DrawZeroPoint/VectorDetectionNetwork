@@ -137,8 +137,7 @@ class VectorDetectionNetwork:
 
             # evaluate on validation set
             perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                                                   crit_heatmap, crit_vector,
-                                                   final_output_dir, tb_log_dir)
+                                                   crit_heatmap, crit_vector, final_output_dir, epoch)
 
             if perf_indicator > best_perf:
                 best_perf = perf_indicator
@@ -201,14 +200,23 @@ class VectorDetectionNetwork:
                                                               output_v.clone().cpu().numpy(),
                                                               np.asarray([center]), np.asarray([shape]))
 
+            # squeeze the batch and joint dims
+            preds_start = np.squeeze(preds_start, (0, 1))
+            preds_end = np.squeeze(preds_end, (0, 1))
+            maxvals = np.squeeze(maxvals, (0, 1))
+            # print('pred shape', preds_start.shape)
+            # print('maxvals shape', maxvals.shape)
+
             # print("points", preds_start[0], "vectors", preds_end[0], "\n", "score", maxvals)
             if verbose:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
 
-                for i, (start_points, end_points) in enumerate(zip(preds_start, preds_end)):
-                    vis_util.apply_dot(draw, start_points, image_width, image_height, idx=i)
-                    vis_util.apply_line(draw, start_points, end_points, image_width, image_height, idx=i)
+                for i, (start_point, end_point) in enumerate(zip(preds_start, preds_end)):
+                    # start_point (k, 2); end_point (k)
+                    print("start_point", start_point, "end_point", end_point)
+                    vis_util.apply_dot(draw, start_point, image_width, image_height, idx=i)
+                    vis_util.apply_line(draw, start_point, end_point, image_width, image_height, idx=i)
 
                 output_image = vis_util.pil_img_to_cv(roi_pil)
                 cv2.imwrite(os.path.join(root_dir, f'data/results/{verbose}_out.jpg'), output_image)

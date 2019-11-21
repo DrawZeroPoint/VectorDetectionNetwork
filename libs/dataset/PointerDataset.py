@@ -53,7 +53,7 @@ class PointerDataset(JointsDataset):
         self.num_images = len(self.image_set_index)
         logger.info('=> num_images: {}'.format(self.num_images))
 
-        self.num_joints = cfg.MODEL.NUM_JOINTS
+        self.max_joint_num = 3
         self.parent_ids = None
 
         self.db = self._get_db()
@@ -215,8 +215,8 @@ class PointerDataset(JointsDataset):
             kpts[kpt['image']].append(kpt)
 
         # rescoring and oks nms
-        num_joints = self.num_joints
-        in_vis_thre = self.in_vis_thre
+        num_joints = 3
+        in_vis_thre = self.in_vis_thre  # 0.2
         oks_thre = self.oks_thre
         oks_nmsed_kpts = []
 
@@ -227,12 +227,10 @@ class PointerDataset(JointsDataset):
                 kpt_score = 0
                 valid_num = 0
                 for n_jt in range(0, num_joints):
-
-
                     trust_score = n_p['keypoints'][n_jt][2]
                     if trust_score > in_vis_thre:
                         kpt_score = kpt_score + trust_score
-                        valid_num = valid_num + 1
+                        valid_num += 1
 
                 if valid_num != 0:
                     kpt_score = kpt_score / valid_num
@@ -269,7 +267,7 @@ class PointerDataset(JointsDataset):
             json.dump(results, f, sort_keys=True, indent=4)
         try:
             json.load(open(res_file))
-        except Exception:
+        except FileNotFoundError:
             content = []
             with open(res_file, 'r') as f:
                 for line in f:
@@ -288,12 +286,10 @@ class PointerDataset(JointsDataset):
             if len(img_kpts) == 0:
                 continue
 
-            _key_points = np.array([img_kpts[k]['keypoints']
-                                    for k in range(len(img_kpts))])
-            key_points = np.zeros(
-                (_key_points.shape[0], self.num_joints * 3), dtype=np.float)
+            _key_points = np.array([img_kpts[k]['keypoints'] for k in range(len(img_kpts))])
+            key_points = np.zeros((_key_points.shape[0], self.max_joint_num * 3), dtype=np.float)
 
-            for ipt in range(self.num_joints):
+            for ipt in range(self.max_joint_num):
                 key_points[:, ipt * 3 + 0] = _key_points[:, ipt, 0]
                 key_points[:, ipt * 3 + 1] = _key_points[:, ipt, 1]
                 key_points[:, ipt * 3 + 2] = _key_points[:, ipt, 2]  # keypoints score.
@@ -310,7 +306,7 @@ class PointerDataset(JointsDataset):
         return cat_results
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
-        coco_dt = self.coco.loadRes(res_file)
+        coco_dt = self.coco.load_res(res_file)
         coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()

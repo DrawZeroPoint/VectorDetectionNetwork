@@ -173,12 +173,12 @@ class COCO:
         return ids
 
     def getImgIds(self, imgIds=[], catIds=[]):
-        '''
-        Get img ids that satisfy given filter conditions.
-        :param imgIds (int array) : get imgs for given ids
-        :param catIds (int array) : get imgs with all given cats
-        :return: ids (int array)  : integer array of img ids
-        '''
+        """Get img ids that satisfy given filter conditions.
+
+        :param imgIds:  (int array) get imgs for given ids
+        :param catIds:  (int array) get imgs with all given cats
+        :return: ids:  (int array)  integer array of img ids
+        """
         imgIds = imgIds if _isArrayLike(imgIds) else [imgIds]
         catIds = catIds if _isArrayLike(catIds) else [catIds]
 
@@ -196,7 +196,7 @@ class COCO:
     def loadAnns(self, ids=[]):
         """
         Load anns with the specified ids.
-        :param ids (int array)       : integer ids specifying anns
+        :param ids: (int array) integer ids specifying anns
         :return: anns (object array) : loaded ann objects
         """
         if _isArrayLike(ids):
@@ -233,7 +233,7 @@ class COCO:
     def showAnns(self, anns):
         """
         Display the specified annotations.
-        :param anns (array of object): annotations to display
+        :param anns: (array of object) annotations to display
         :return: None
         """
         if len(anns) == 0:
@@ -296,27 +296,29 @@ class COCO:
             for ann in anns:
                 print(ann['caption'])
 
-    def loadRes(self, resFile):
-        """
-        Load result file and return a result api object.
-        :param   resFile (str)     : file name of result file
-        :return: res (obj)         : result api object
+    def load_res(self, result_file):
+        """Load result file and return a result api object.
+
+        :param result_file: file name of result file
+        :return: res (obj): result api object
         """
         res = COCO()
         res.dataset['images'] = [img for img in self.dataset['images']]
 
         print('Loading and preparing results...')
         tic = time.time()
-        if type(resFile) == str or type(resFile) == unicode:
-            anns = json.load(open(resFile))
-        elif type(resFile) == np.ndarray:
-            anns = self.loadNumpyAnnotations(resFile)
+        if type(result_file) == str or type(result_file) == unicode:
+            anns = json.load(open(result_file))
+        elif type(result_file) == np.ndarray:
+            anns = self.loadNumpyAnnotations(result_file)
         else:
-            anns = resFile
-        assert type(anns) == list, 'results in not an array of objects'
+            anns = result_file
+        assert type(anns) == list, 'result type is not an array of objects'
+
         annsImgIds = [ann['image_id'] for ann in anns]
         assert set(annsImgIds) == (set(annsImgIds) & set(self.getImgIds())), \
             'Results do not correspond to current coco set'
+
         if 'caption' in anns[0]:
             imgIds = set([img['id'] for img in res.dataset['images']]) & set([ann['image_id'] for ann in anns])
             res.dataset['images'] = [img for img in res.dataset['images'] if img['id'] in imgIds]
@@ -327,7 +329,7 @@ class COCO:
             for id, ann in enumerate(anns):
                 bb = ann['bbox']
                 x1, x2, y1, y2 = [bb[0], bb[0] + bb[2], bb[1], bb[1] + bb[3]]
-                if not 'segmentation' in ann:
+                if 'segmentation' not in ann:
                     ann['segmentation'] = [[x1, y1, x1, y2, x2, y2, x2, y1]]
                 ann['area'] = bb[2] * bb[3]
                 ann['id'] = id + 1
@@ -337,7 +339,7 @@ class COCO:
             for id, ann in enumerate(anns):
                 # now only support compressed RLE format as segmentation results
                 ann['area'] = maskUtils.area(ann['segmentation'])
-                if not 'bbox' in ann:
+                if 'bbox' not in ann:
                     ann['bbox'] = maskUtils.toBbox(ann['segmentation'])
                 ann['id'] = id + 1
                 ann['iscrowd'] = 0
@@ -358,12 +360,12 @@ class COCO:
         return res
 
     def download(self, tarDir=None, imgIds=[]):
-        '''
-        Download COCO images from mscoco.org server.
-        :param tarDir (str): COCO results directory name
-               imgIds (list): images to be downloaded
+        """Download COCO images from mscoco.org server.
+
+        :param tarDir: (str) COCO results directory name
+               imgIds: (list) images to be downloaded
         :return:
-        '''
+        """
         if tarDir is None:
             print('Please specify target directory')
             return -1

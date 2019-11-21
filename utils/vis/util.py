@@ -89,15 +89,23 @@ def pil_img_to_cv(pil_image):
     return cv_image[:, :, ::-1].copy()
 
 
-def save_np_heatmaps(batch_heatmaps, file_name, is_max=True):
+def save_np_heatmaps(batch_heatmaps, file_name, is_max=False):
     """
     batch_heatmaps: should be numpy.ndarray
     file_name: saved file name
     """
-    batch_size = batch_heatmaps.shape[0]
-    num_joints = batch_heatmaps.shape[1]
-    heatmap_height = batch_heatmaps.shape[2]
-    heatmap_width = batch_heatmaps.shape[3]
+    if len(batch_heatmaps.shape) == 4:
+        batch_size = batch_heatmaps.shape[0]
+        num_joints = batch_heatmaps.shape[1]
+        heatmap_height = batch_heatmaps.shape[2]
+        heatmap_width = batch_heatmaps.shape[3]
+    else:
+        batch_size = 1
+        num_joints = 1
+        heatmap_height = batch_heatmaps.shape[0]
+        heatmap_width = batch_heatmaps.shape[1]
+        batch_heatmaps = np.expand_dims(batch_heatmaps, 0)
+        batch_heatmaps = np.expand_dims(batch_heatmaps, 0)
 
     grid_image = np.zeros((batch_size * heatmap_height, num_joints * heatmap_width, 3), dtype=np.uint8)
 
@@ -184,31 +192,29 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
     cv2.imwrite(file_name, grid_image)
 
 
-def apply_dot(draw, xy_list, w, h, idx=0):
+def apply_dot(draw, xy, w, h, idx=0):
     """
     """
     color = STANDARD_COLORS[idx % NUM_COLORS]
     d = int(min(w, h) * 0.02)
 
-    for xy in xy_list:
-        x = xy[0]
-        y = xy[1]
-        ellipse_bbox = [x - d, y - d, x + d, y + d]
-        draw.ellipse(ellipse_bbox, fill=color)
+    x = xy[0]
+    y = xy[1]
+    ellipse_bbox = [x - d, y - d, x + d, y + d]
+    draw.ellipse(ellipse_bbox, fill=color)
 
 
-def apply_line(draw, start_points, end_points, w, h, idx=0):
+def apply_line(draw, sp, ep, w, h, idx=0):
     """
     :param draw: PIL Draw
-    :param start_points: [[x, y] ...]
-    :param end_points: [[x, y] ...]
+    :param sp: [x, y]
+    :param ep: [x, y]
     :param w: int
     :param h: int
     :param idx: int
     """
     color = STANDARD_COLORS[idx % NUM_COLORS]
 
-    for sp, ep in zip(start_points, end_points):
-        line = [sp[0], sp[1], ep[0], ep[1]]
-        draw.line(line, width=int(min(w, h) * 0.01), fill=color)
+    line = [sp[0], sp[1], ep[0], ep[1]]
+    draw.line(line, width=int(min(w, h) * 0.01), fill=color)
 

@@ -42,9 +42,10 @@ def get_peaks_by_local_maximum(heatmap):
     """Peaks are the local maxima in a region of 2*min_distance+1
     High pass filter on heatmap
     min_distance for 2 adjacent points to be reduced as 1, because the heatmap is small,
-    we should have low min_distance to prevent points near the borders getting lost
+    we should use low min_distance to prevent points near the borders getting lost.
+    We choose min_distance=3 by experiment
     """
-    coordinates = peak_local_max(heatmap, min_distance=10, threshold_rel=0.1)
+    coordinates = peak_local_max(heatmap, min_distance=3, threshold_rel=0.1)
     if not list(coordinates):
         print('------> get_peaks_by_local_maximum: no peak')
 
@@ -71,8 +72,8 @@ def get_all_joint_preds(batch_heatmaps):
     assert isinstance(batch_heatmaps, np.ndarray), 'batch_heatmaps should be numpy.ndarray'
     assert batch_heatmaps.ndim == 4, 'batch_images should be 4-dim'
 
-    batch_size = batch_heatmaps.shape[0]  # 2
-    num_joints = batch_heatmaps.shape[1]  # 5
+    batch_size = batch_heatmaps.shape[0]
+    num_joints = batch_heatmaps.shape[1]
 
     preds = []
     maxvals = []
@@ -91,7 +92,7 @@ def get_all_joint_preds(batch_heatmaps):
         preds.append(joints_peaks)
         maxvals.append(joints_maxvals)
 
-    return np.array(preds), maxvals
+    return np.array(preds), np.array(maxvals)
 
 
 def get_all_orientation_preds(pred_all_joints, vector_maps):
@@ -160,6 +161,14 @@ def get_max_preds(batch_heatmaps):
 
 # @torchsnooper.snoop()
 def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
+    """
+
+    :param batch_heatmaps: (b, j, h, w)
+    :param batch_vectormaps: (b, j, h, w)
+    :param center:
+    :param scale:
+    :return: preds_start, preds_end (b, j, k, 2); maxvals (b, j, k, 1)
+    """
     batch_sz = batch_heatmaps.shape[0]
     heatmap_height = batch_heatmaps.shape[2]
     heatmap_width = batch_heatmaps.shape[3]
@@ -169,9 +178,15 @@ def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
     preds_v = get_all_orientation_preds(preds_start, batch_vectormaps)
 
     # Transform back
-    preds_end = preds_start + preds_v * 100.
+    preds_end = None
+    if preds_v is not None:
+        preds_end = preds_start + preds_v * 1000.
     for i in range(batch_sz):
         preds_start[i] = transform_preds(preds_start[i], center[i], scale[i], [heatmap_width, heatmap_height])
-        preds_end[i] = transform_preds(preds_end[i], center[i], scale[i], [heatmap_width, heatmap_height])
+        if preds_v is not None:
+            preds_end[i] = transform_preds(preds_end[i], center[i], scale[i], [heatmap_width, heatmap_height])
 
-    return preds_start[0], preds_end[0], maxvals[0]
+    # print('pred shape', preds_start.shape)
+    # print('maxvals shape', maxvals.shape)
+    maxvals = np.expand_dims(maxvals, -1)
+    return preds_start, preds_end, maxvals

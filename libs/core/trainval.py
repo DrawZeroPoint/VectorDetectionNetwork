@@ -8,6 +8,7 @@ import os
 import numpy as np
 import torch
 
+import libs.core.inference as lib_inference
 from libs.core.config import get_model_name
 from libs.core.evaluate import accuracy
 from libs.utils.vis import save_debug_images
@@ -89,7 +90,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
             save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
 
-def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, tb_log_dir):
+def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, epoch):
     writer_dict = None
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -103,11 +104,12 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
     image_path = []
     filenames = []
     imgnums = []
+    max_instance_num = 3  # how many instances could be in one sample image
     idx = 0
 
     with torch.no_grad():
         end = time.time()
-        all_preds = np.zeros((num_samples, config.MODEL.NUM_JOINTS, 3), dtype=np.float32)
+        all_joint_preds = np.zeros((num_samples, max_instance_num, 3), dtype=np.float32)
         all_boxes = np.zeros((num_samples, 6))
 
         for i, (input, target_heatmap, target_vectormap, meta) in enumerate(val_loader):
@@ -120,7 +122,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
 
             j_loss = crit_heatmap(out_heatmap, target_heatmap)
             v_loss = crit_vector(out_vector, target_vectormap)
-            loss = j_loss + v_loss
+            loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
 
             num_images = input.size(0)
             # measure accuracy and record loss
@@ -143,10 +145,18 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             s = meta['scale'].numpy()
             score = meta['score'].numpy()
 
-            # preds, maxvals = get_final_preds(config, out_heatmap.clone().cpu().numpy(), c, s)
+            joint_preds, _, maxvals = lib_inference.get_final_preds(out_heatmap.clone().cpu().numpy(),
+                                                                    out_vector.clone().cpu().numpy(), c, s)
 
-            # all_preds[idx:idx + num_images, :, 0:2] = preds[:, :, 0:2]
-            # all_preds[idx:idx + num_images, :, 2:3] = maxvals
+            # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
+            # joint_preds (b, j, k, 2), maxvals (b, j, k, 1)
+            k = min(joint_preds.shape[-2], max_instance_num)
+            joint_preds = np.squeeze(joint_preds, 1)  # squeeze the joint dim cause joint_num=1
+            maxvals = np.squeeze(maxvals, 1)
+
+            if joint_preds.shape[-1] == 2 and maxvals.shape[-1] == 1:
+                all_joint_preds[idx:idx + num_images, 0:k, 0:2] = joint_preds[:, 0:k, :]
+                all_joint_preds[idx:idx + num_images, 0:k, 2:3] = maxvals[:, 0:k, :]
 
             all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
             all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
@@ -168,7 +178,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                 save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
-        name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
+        name_values, perf_indicator = val_dataset.evaluate(config, all_joint_preds, output_dir, all_boxes,
                                                            image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)
