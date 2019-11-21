@@ -1,11 +1,11 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/weights/output2'
+OUTPUT_DIR: '/VDN/weights/output'
 LOG_DIR: '/VDN/logs'
 WORKERS: 1
 
 DATASET:
   DATASET: 'coco'
-  ROOT: '/Database/Done/0_meter_recognition/pointer_dataset_3/'
+  ROOT: '/Database/Done/0_meter_recognition/pointer_dataset_debug/'
   TRAIN_SET: 'train_pointer'
   TEST_SET: 'val_pointer'
   FLIP: false
