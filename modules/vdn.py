@@ -154,6 +154,9 @@ class VectorDetectionNetwork:
                 'optimizer': optimizer.state_dict(),
             }, best_model, final_output_dir)
 
+            if epoch % 40 == 0 and epoch != 0:
+                torch.save(self.model.module.state_dict(), os.path.join(final_output_dir, f'{epoch}.pth.tar'))
+
         final_model_state_file = os.path.join(final_output_dir, 'final_state.pth.tar')
         logger.info('saving final model state to {}'.format(final_model_state_file))
         torch.save(self.model.module.state_dict(), final_model_state_file)
