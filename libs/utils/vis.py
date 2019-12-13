@@ -1,11 +1,8 @@
-from __future__ import absolute_import
-from __future__ import division
-
+import cv2
 import math
 
 import numpy as np
 import torchvision
-import cv2
 
 from libs.core.inference import get_all_joint_preds
 
@@ -52,8 +49,8 @@ def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expan
                     joint[1] += y * height + padding
                     px = int(joint[0])
                     py = int(joint[1])
-                    vx = int(vec[0] * 100)
-                    vy = int(vec[1] * 100)
+                    vx = int(vec[0] * 10000)
+                    vy = int(vec[1] * 10000)
                     cv2.circle(ndarr, (px, py), 2, [0, 255, 0], 2)
                     cv2.line(ndarr, (px, py), (px + vx, py + vy), (0, 255, 0), 3)
             b += 1

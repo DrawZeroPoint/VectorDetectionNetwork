@@ -205,14 +205,25 @@ class PointerDataset(JointsDataset):
         return image_path
 
     def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
+        """
+
+        :param cfg:
+        :param preds: (num_samples, max_instance_num, 3)
+        :param output_dir:
+        :param all_boxes: (num_samples, 6)
+        :param img_path:
+        :param args:
+        :param kwargs:
+        :return:
+        """
         res_folder = os.path.join(output_dir, 'results')
         if not os.path.exists(res_folder):
             os.makedirs(res_folder)
         res_file = os.path.join(res_folder, 'keypoints_%s_results.json' % self.image_set)
 
-        _kpts = []
+        preds_list = []
         for idx, kpt in enumerate(preds):
-            _kpts.append({
+            preds_list.append({
                 'keypoints': kpt,
                 'center': all_boxes[idx][0:2],
                 'scale': all_boxes[idx][2:4],
@@ -222,7 +233,7 @@ class PointerDataset(JointsDataset):
             })
 
         kpts = defaultdict(list)
-        for kpt in _kpts:
+        for kpt in preds_list:
             kpts[kpt['image']].append(kpt)
 
         # rescoring and oks nms

@@ -160,13 +160,14 @@ def get_max_preds(batch_heatmaps):
 
 
 # @torchsnooper.snoop()
-def get_final_preds(batch_heatmaps, batch_vectormaps, center, scale):
-    """
+def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, center, scale) \
+                    -> [np.ndarray, np.ndarray]:
+    """Get final vector origin and orientation predictions from heatmap and vectormap respectively.
 
     :param batch_heatmaps: (b, j, h, w)
     :param batch_vectormaps: (b, j, h, w)
-    :param center:
-    :param scale:
+    :param center: (b, 2)
+    :param scale: (b, 2)
     :return: preds_start, preds_end (b, j, k, 2); maxvals (b, j, k, 1)
     """
     batch_sz = batch_heatmaps.shape[0]

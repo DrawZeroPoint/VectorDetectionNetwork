@@ -12,6 +12,7 @@ import libs.core.inference as lib_inference
 from libs.core.config import get_model_name
 from libs.core.evaluate import accuracy
 from libs.utils.vis import save_debug_images
+from libs.utils.utils import sort_multi_dimension_array
 
 
 logger = logging.getLogger(__name__)
@@ -148,11 +149,14 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             joint_preds, _, maxvals = lib_inference.get_final_preds(out_heatmap.clone().cpu().numpy(),
                                                                     out_vector.clone().cpu().numpy(), c, s)
 
+            # sort the predictions and get the first 3 with highest score
             # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
             # joint_preds (b, j, k, 2), maxvals (b, j, k, 1)
+            sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
+            sorted_maxvals = -np.sort(-sorted_maxvals, 2)  # in descending order
             k = min(joint_preds.shape[-2], max_instance_num)
-            joint_preds = np.squeeze(joint_preds, 1)  # squeeze the joint dim cause joint_num=1
-            maxvals = np.squeeze(maxvals, 1)
+            joint_preds = np.squeeze(sorted_joint_preds, 1)  # squeeze the joint dim cause joint_num=1
+            maxvals = np.squeeze(sorted_maxvals, 1)
 
             if joint_preds.shape[-1] == 2 and maxvals.shape[-1] == 1:
                 all_joint_preds[idx:idx + num_images, 0:k, 0:2] = joint_preds[:, 0:k, :]

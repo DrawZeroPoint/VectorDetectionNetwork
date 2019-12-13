@@ -1,12 +1,15 @@
-from __future__ import absolute_import
-from __future__ import division
+#!/usr/bin/env python
+# coding=utf-8
+
 
 import os
 import logging
 import time
+
 from pathlib2 import Path
 
 import torch
+import numpy as np
 import torch.optim as optim
 
 from libs.core.config import get_model_name
@@ -73,3 +76,28 @@ def save_checkpoint(states, is_best, output_dir):
         torch.save(states['state_dict'], os.path.join(output_dir, best_name))
     if is_best and 'state_dict' in states:
         torch.save(states['state_dict'], os.path.join(output_dir, best_name))
+
+
+def sort_multi_dimension_array(sort_array: np.ndarray, ind_array: np.ndarray, axis: int):
+    """Sort given array by another array in descending order
+
+    :param sort_array:
+    :param ind_array:
+    :param axis:
+    :return:
+    """
+    s_shape = sort_array.shape
+    i_shape = ind_array.shape
+
+    assert s_shape[axis] == i_shape[axis]
+
+    result_list = list(map(lambda x, y: y[:][:][x], np.argsort(-ind_array, axis), sort_array))
+    return result_list[0].reshape(s_shape)
+
+
+if __name__ == "__main__":
+    sort_arr = np.array([[[8, 5], [9, 6], [2, 2], [4, 3]]])
+    ind_arr = np.array([[[1], [5], [4], [10]]])
+
+    res = sort_multi_dimension_array(sort_arr, ind_arr, 1)
+    print(res)
