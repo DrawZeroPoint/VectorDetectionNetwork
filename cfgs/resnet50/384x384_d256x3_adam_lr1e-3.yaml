@@ -1,14 +1,13 @@
 GPUS: '0'
 OUTPUT_DIR: '/VDN/weights/output'
 LOG_DIR: '/VDN/logs'
-WORKERS: 1
+WORKERS: 4
 
 DATASET:
   DATASET: 'coco'
   ROOT: '/Database/Done/0_meter_recognition/pointer_dataset_3/'
   TRAIN_SET: 'train_pointer'
   TEST_SET: 'val_pointer'
-  FLIP: false
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
@@ -39,7 +38,7 @@ MODEL:
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
-  BATCH_SIZE: 1
+  BATCH_SIZE: 2
   SHUFFLE: true
   BEGIN_EPOCH: 0
   END_EPOCH: 200

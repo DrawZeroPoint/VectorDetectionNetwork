@@ -39,7 +39,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         target_heatmap = target_heatmap.cuda(non_blocking=True)
         target_vectormap = target_vectormap.cuda(non_blocking=True)
 
-        # print(f'shape of outheatmap {out_heatmap.shape}, out_vector {out_vector.shape},'
+        # print(f'shape of out heatmap {out_heatmap.shape}, out_vector {out_vector.shape},'
         #       f'target_heatmap {target_heatmap.shape}, target_vector {target_vector.shape},'
         #       f'tgt_indexes {tgt_indexes.shape}')
 

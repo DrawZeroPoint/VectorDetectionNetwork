@@ -8,7 +8,6 @@ import shutil
 import sys
 import numpy as np
 import math
-import torchsnooper
 
 import cv2
 import torch
@@ -33,7 +32,6 @@ from libs.utils.transforms import get_affine_transform
 
 import libs.dataset as lib_dataset
 import libs.models.vdn_model as vdn_model
-import libs.core.inference as lib_inference
 
 import utils.vis.util as vis_util
 from PIL import ImageDraw

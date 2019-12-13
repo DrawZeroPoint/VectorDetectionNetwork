@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-import torch
 import scipy
 import numpy as np
 
@@ -65,19 +64,19 @@ def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
 
     norm_j = np.ones(2) * np.array([h, w]) / 10
     norm_v = np.ones(2)
-    dists_j = np.ones((num_joints, batch_sz)) * -1.  # (j, b)
-    dists_v = np.ones((num_joints, batch_sz)) * -1.
+    dists_j = np.ones((batch_sz, num_joints)) * -1.
+    dists_v = np.ones((batch_sz, num_joints)) * -1.
 
-    for n in range(batch_sz):
-        for c in range(num_joints):
-            pred_joint_list = pred_joints[n][c]
-            gt_joint_list = gt_joints[n][c]
-            dists_j[n, c] = get_dist(pred_joint_list, gt_joint_list, norm_j)
+    for b in range(batch_sz):
+        for n in range(num_joints):
+            pred_joint_list = pred_joints[b][n]
+            gt_joint_list = gt_joints[b][n]
+            dists_j[b, n] = get_dist(pred_joint_list, gt_joint_list, norm_j)
 
             if pred_vectors is not None and gt_vectors is not None:
-                pred_vector_list = pred_vectors[n][c]
-                gt_vector_list = gt_vectors[n][c]
-                dists_v[n, c] = get_dist(pred_vector_list, gt_vector_list, norm_v)
+                pred_vector_list = pred_vectors[b][n]
+                gt_vector_list = gt_vectors[b][n]
+                dists_v[b, n] = get_dist(pred_vector_list, gt_vector_list, norm_v)
 
     # print(f'pred_joints {pred_joints.shape}, target {targets.shape}')
 

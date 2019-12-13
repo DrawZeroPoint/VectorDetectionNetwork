@@ -3,7 +3,6 @@
 
 import logging
 import os
-import math
 import pickle
 from collections import defaultdict
 from collections import OrderedDict
@@ -35,7 +34,7 @@ class PointerDataset(JointsDataset):
         self.image_height = cfg.MODEL.IMAGE_SIZE[1]
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.pixel_std = 200
-        self.coco = COCO(self._get_ann_file_keypoint())
+        self.coco = COCO(self._get_ann_file())
 
         # deal with class names
         cats = [cat['name'] for cat in self.coco.loadCats(self.coco.getCatIds())]
@@ -44,8 +43,7 @@ class PointerDataset(JointsDataset):
         self.num_classes = len(self.classes)
         self._class_to_ind = dict(zip(self.classes, range(self.num_classes)))
         self._class_to_coco_ind = dict(zip(cats, self.coco.getCatIds()))
-        self._coco_ind_to_class_ind = dict([(self._class_to_coco_ind[cls],
-                                             self._class_to_ind[cls])
+        self._coco_ind_to_class_ind = dict([(self._class_to_coco_ind[cls], self._class_to_ind[cls])
                                             for cls in self.classes[1:]])
 
         # load image file names
@@ -53,7 +51,8 @@ class PointerDataset(JointsDataset):
         self.num_images = len(self.image_set_index)
         logger.info('=> num_images: {}'.format(self.num_images))
 
-        self.max_joint_num = 3
+        self.max_joint_num = 3  # TODO check this
+        self.max_instance_num = 3
         self.parent_ids = None
 
         self.db = self._get_db()
@@ -63,13 +62,13 @@ class PointerDataset(JointsDataset):
 
         logger.info('=> load {} samples'.format(len(self.db)))
 
-    def _get_ann_file_keypoint(self):
+    def _get_ann_file(self):
         """self.image_set could be train_pointer or val_pointer
 
         """
         prefix = 'ann' if 'test' not in self.image_set else 'image_info'
         filename = os.path.join(self.root, 'annotations', prefix + '_' + self.image_set + '.json')
-        print(f'! ann file keypoints: {filename}')
+        print(f'The annotation file: {filename}')
         return filename
 
     def _load_image_set_index(self):
@@ -81,10 +80,13 @@ class PointerDataset(JointsDataset):
         return self._load_coco_keypoint_annotations()
 
     def _load_coco_keypoint_annotations(self):
-        """ ground truth bbox and keypoints """
+        """ground truth bbox and keypoints.
+
+        """
         gt_db = []
         for index in self.image_set_index:
             gt_db.extend(self._load_coco_keypoint_annotation_kernel(index))
+
         return gt_db
 
     def _load_coco_keypoint_annotation_kernel(self, index):
@@ -95,9 +97,11 @@ class PointerDataset(JointsDataset):
             and later excluded in training
         bbox:
             [x1, y1, w, h]
+
         :param index: coco image id
         :return: db entry
         """
+
         im_ann = self.coco.loadImgs(index)[0]
         width = im_ann['width']
         height = im_ann['height']
@@ -105,6 +109,8 @@ class PointerDataset(JointsDataset):
         ann_ids = self.coco.getAnnIds(imgIds=index, iscrowd=False)
         objs = self.coco.loadAnns(ann_ids)
 
+        # We only have one bbox annotation for one image
+        # multiple objects (pointer, in this case) share the same bbox (same clock)
         all_in_one_obj = None
         for obj in objs:
             x, y, w, h = obj['bbox']
@@ -113,17 +119,16 @@ class PointerDataset(JointsDataset):
             x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
             y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
             if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
-                obj['clean_bbox'] = [x1, y1, x2-x1, y2-y1]
+                obj['clean_bbox'] = [x1, y1, x2 - x1, y2 - y1]
                 all_in_one_obj = obj
+                break
 
         if all_in_one_obj is None:
             raise ValueError('No bbox available')
 
-        rec = []
-        center, scale = self._box2cs(all_in_one_obj['clean_bbox'][:4])
+        center, scale = self._box2cs(all_in_one_obj['clean_bbox'])
 
-        # Using this method, we only have one joint
-        keys_of_joint = []
+        vectors = []
         for k, obj in enumerate(objs):
             cls = self._coco_ind_to_class_ind[obj['category_id']]
             if cls != 1:
@@ -133,6 +138,7 @@ class PointerDataset(JointsDataset):
             if max(obj['keypoints']) == 0:
                 raise ValueError('no keypoint')
 
+            # We use the head of the pointer as the target while using the tail to calculate the vector
             x0 = obj['keypoints'][6]
             y0 = obj['keypoints'][7]
             x1 = obj['keypoints'][0]
@@ -140,23 +146,28 @@ class PointerDataset(JointsDataset):
             vis = obj['keypoints'][2]
 
             pt = np.array([x0, y0, x1, y1, vis])
-            keys_of_joint.append(pt)
+            vectors.append(pt)
 
-            p1s = np.array(keys_of_joint)
+        sz = len(vectors)
+        if sz < self.max_instance_num:
+            i = self.max_instance_num - sz
+            while i:
+                vectors.append(np.array([0, 0, 0, 0, 0]))
+                i -= 1
 
-        res = np.expand_dims(p1s, 0)
+        vectors_array = np.array(vectors)
+        res = np.expand_dims(vectors_array, 0)
 
-        # joints_xyv [num_joints, k, 5]
-        rec.append({
+        record = [{
             'image': self.image_path_from_index(index),
             'center': center,
             'scale': scale,
-            'joints_xyv': res,
+            'joints_xyv': res,  # joints_xyv [num_joints, k==3, 5]
             'filename': '',
             'imgnum': 0,
-        })
+        }]
 
-        return rec
+        return record
 
     def _box2cs(self, box):
         x, y, w, h = box[:4]
