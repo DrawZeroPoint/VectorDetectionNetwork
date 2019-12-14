@@ -81,8 +81,8 @@ def save_checkpoint(states, is_best, output_dir):
 def sort_multi_dimension_array(sort_array: np.ndarray, ind_array: np.ndarray, axis: int):
     """Sort given array by another array in descending order
 
-    :param sort_array:
-    :param ind_array:
+    :param sort_array: (b, j, k, 2)
+    :param ind_array: (b, j, k, 1)
     :param axis:
     :return:
     """
@@ -91,8 +91,11 @@ def sort_multi_dimension_array(sort_array: np.ndarray, ind_array: np.ndarray, ax
 
     assert s_shape[axis] == i_shape[axis]
 
-    result_list = list(map(lambda x, y: y[:][:][x], np.argsort(-ind_array, axis), sort_array))
-    return result_list[0].reshape(s_shape)
+    try:
+        result_list = list(map(lambda x, y: y[:][:][x], np.argsort(-ind_array, axis), sort_array))
+        return result_list[0].reshape(s_shape)
+    except IndexError:
+        return sort_array
 
 
 if __name__ == "__main__":

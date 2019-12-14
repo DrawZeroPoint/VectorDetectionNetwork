@@ -153,7 +153,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
             # joint_preds (b, j, k, 2), maxvals (b, j, k, 1)
             sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
-            sorted_maxvals = -np.sort(-sorted_maxvals, 2)  # in descending order
+            sorted_maxvals = -np.sort(-maxvals, 2)  # in descending order
             k = min(joint_preds.shape[-2], max_instance_num)
             joint_preds = np.squeeze(sorted_joint_preds, 1)  # squeeze the joint dim cause joint_num=1
             maxvals = np.squeeze(sorted_maxvals, 1)
