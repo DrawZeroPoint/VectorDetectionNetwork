@@ -64,6 +64,10 @@ This repo is organized as follows:
 |
 +-- compiled  # Compiled third-party libraries
 |
++-- data
+|   +-- demo
+|   +-- result
+|
 +-- libs  # VDN libraries
 |
 +-- modules  # The VDN class
@@ -71,6 +75,7 @@ This repo is organized as follows:
 +-- utils  # Some handy utilities
 |
 +-- weights
+|   +-- pretrained
 |
 +-- .dockerignore
 +-- .gitignore
@@ -87,23 +92,32 @@ This repo is organized as follows:
 
 # Compile
 
-We have provided a bash script `add_aliases.sh` to insert some handy bash scripts within the file `~/.bash_aliases`.
-It is recommended to do so in `~/VDN`:
+We have provided a bash script `add_aliases.sh`  to insert some handy bash scripts within the file `~/.bash_aliases`.
+It is recommended to do so in the root folder of this project:
 
 ```
 bash add_aliases.sh
 source ~/.bash_aliases
 ```
 
-Then, before training or testing VDN, you should run this to compile the code:
+Then, before training or testing VDN, run this to compile the code:
 
 ```
 vdn_compile
 ```
 
-# Train
+# The Pointer-10K dataset
 
-Before training the VDN model, make sure you have the `Database` located in `~`.
+The Pointer-10K dataset referred in our paper is public available for non commercial usage. If you are interested 
+in the data, please contact us via email. The address will be released afterwards. 
+
+
+# Basic Training
+
+Before training the VDN model, (i) make sure you have the Pointer-10K dataset located in `~/Database/Done/pointer_10k`.
+(ii) Download the pretrained resnet model `resnet50-19c8e357.pth` for parameter initialization from 
+[torchvision](https://download.pytorch.org/models/resnet50-19c8e357.pth)
+and put it in `weights/pretrained/` (you may need to create the path manually). 
 
 ```
 # start the docker container
@@ -115,21 +129,25 @@ python train.py
 
 # Run the demo
 
+To run the demo, put the trained model named as `vdn_best.pth.tar` into `weights/`, and
+run the code below
+
 ```
 # start the docker container
 vdn_run
 
-# run the demo 
+# run the demo within the container
 python demo.py
 ```
 
+We provide the model trained by us: [download]()
+
 You can put your own image into `VDN/data/demo` and the algorithm will automatically find all images within the folder
-and detect pointers in these images if any analog meters exists.
-
-# The Pointer-10K data set
-
-The Pointer-10K dataset referred in our paper is public available for non commercial usage. If you are interested 
-in the data, please contact us via email, which will be released afterwards. 
+and detect pointers in these images if any analog meters exists. Please note that VDN takes the image patches output
+by a meter detector, hereby the provided demo images should contain the whole dial face but not much background nor 
+only a part of the meters.
+ 
+Results of the demo will be output to automatically created folder `output/demo`.
 
 
    [nv]: <https://github.com/NVIDIA/nvidia-docker>

@@ -64,6 +64,10 @@ class VectorDetectionNetwork:
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
 
+        self.output_dir = os.path.join(root_dir, 'output/demo')
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
     def train(self):
         """
         """
@@ -160,12 +164,12 @@ class VectorDetectionNetwork:
         torch.save(self.model.module.state_dict(), final_model_state_file)
 
     # @torchsnooper.snoop()
-    def get_vectors(self, roi_image, verbose=0):
-        """Given ROI image roi_image in ndarray format, return vectors represented by 2 points [[[ps_x, ps_y],
+    def get_vectors(self, roi_image: np.ndarray, verbose=0):
+        """Given roi_image of pointer-type meter dial face, return vectors represented by 2 points [[[ps_x, ps_y],
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
 
         :param roi_image: 
-        :param verbose: if >0, save result image with id=verbose
+        :param verbose: if > 0, save result image with id=verbose
         :return:
         """
         model = self.model
@@ -215,14 +219,14 @@ class VectorDetectionNetwork:
 
                 for i, (start_point, end_point) in enumerate(zip(preds_start, preds_end)):
                     # start_point (k, 2); end_point (k)
-                    print("start_point", start_point, "end_point", end_point)
+                    print("initial_point", start_point, "end_point", end_point)
                     vis_util.apply_dot(draw, start_point, image_width, image_height, idx=i)
                     vis_util.apply_line(draw, start_point, end_point, image_width, image_height, idx=i)
 
                 output_image = vis_util.pil_img_to_cv(roi_pil)
-                cv2.imwrite(os.path.join(root_dir, f'data/results/{verbose}_out.jpg'), output_image)
+                cv2.imwrite(os.path.join(self.output_dir, f'res_{verbose}.jpg'), output_image)
 
                 vis_util.save_batch_heatmaps(net_input, output_hm,
-                                             os.path.join(root_dir, f'data/results/{verbose}_hmap.jpg'))
+                                             os.path.join(self.output_dir, f'hmap_{verbose}.jpg'))
 
             return preds_start, preds_end, maxvals
