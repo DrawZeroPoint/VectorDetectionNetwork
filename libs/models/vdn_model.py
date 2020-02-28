@@ -230,29 +230,29 @@ class VDNModel(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        print(f'input size: {x.size()}')
+        # print(f'input size: {x.size()}')
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        print(f'after conv1 size: {x.size()}')
+        # print(f'after conv1 size: {x.size()}')
         x = self.maxpool(x)
-        print(f'after maxpool size: {x.size()}')
+        # print(f'after maxpool size: {x.size()}')
 
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        print(f'after residuals size: {x.size()}')
+        # print(f'after residuals size: {x.size()}')
 
         x = self.deconv_layers(x)
-        print(f'after deconv size: {x.size()}')
+        # print(f'after deconv size: {x.size()}')
 
         hm = self.final_layer_hm(x)
-        print(f'hm size: {hm.size()}')
+        # print(f'hm size: {hm.size()}')
 
         vm = self.final_layer_v(x)
         vm = vm.tanh()
-        print(f'vm size: {vm.size()}')
+        # print(f'vm size: {vm.size()}')
 
         return hm, vm
 

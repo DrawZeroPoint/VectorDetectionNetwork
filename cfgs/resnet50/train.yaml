@@ -1,6 +1,6 @@
 GPUS: '0'
 OUTPUT_DIR: '/VDN/output/train'
-LOG_DIR: '/VDN/logs'
+LOG_DIR: '/VDN/logs/train'
 WORKERS: 4
 
 DATASET:
@@ -12,7 +12,7 @@ DATASET:
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_model'  # This name should exist in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/vdn_best.pth.tar'  # '/VDN/weights/pretrained/resnet50-19c8e357.pth'
+  PRETRAINED: '/VDN/weights/pretrained/resnet50-19c8e357.pth'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height
@@ -47,8 +47,8 @@ TRAIN:
   LR: 0.001
   LR_FACTOR: 0.1
   LR_STEP:
-  - 90
-  - 120
+  - 100
+  - 150
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.0

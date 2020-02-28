@@ -63,11 +63,12 @@ class PointerDataset(JointsDataset):
         logger.info('=> load {} samples'.format(len(self.db)))
 
     def _get_ann_file(self):
-        """self.image_set could be train_pointer or val_pointer
+        """self.image_set could be train_pointer, val_pointer, or test_pointer.
+        Note that be different with COCO, we provide annotations for the test split,
+        so the 'image_info' prefix is not applied to test_pointer
 
         """
-        prefix = 'ann' if 'test' not in self.image_set else 'image_info'
-        filename = os.path.join(self.root, 'annotations', prefix + '_' + self.image_set + '.json')
+        filename = os.path.join(self.root, 'annotations', 'ann_' + self.image_set + '.json')
         print(f'The annotation file: {filename}')
         return filename
 
@@ -191,13 +192,11 @@ class PointerDataset(JointsDataset):
         return center, scale
 
     def image_path_from_index(self, index):
-        """ example: images / train2017 / 000000119993.jpg """
+        """example: images / train_pointer / 000000119993.jpg.
+
+        """
         file_name = '%012d.jpg' % index
-        if '2014' in self.image_set:
-            file_name = 'COCO_%s_' % self.image_set + file_name
-
-        prefix = 'test2017' if 'test' in self.image_set else self.image_set
-
+        prefix = self.image_set
         data_name = prefix + '.zip@' if self.data_format == 'zip' else prefix
 
         image_path = os.path.join(self.root, 'images', data_name, file_name)
@@ -267,12 +266,9 @@ class PointerDataset(JointsDataset):
 
         self._write_coco_keypoint_results(oks_nmsed_kpts, res_file)
 
-        if 'test' not in self.image_set:
-            info_str = self._do_python_keypoint_eval(res_file, res_folder)
-            name_value = OrderedDict(info_str)
-            return name_value, name_value['AP']
-        else:
-            return {'Null': 0}, 0
+        info_str = self._do_python_keypoint_eval(res_file, res_folder)
+        name_value = OrderedDict(info_str)
+        return name_value, name_value['AP']
 
     def _write_coco_keypoint_results(self, keypoints, res_file):
         data_pack = [{'cat_id': self._class_to_coco_ind[cls],

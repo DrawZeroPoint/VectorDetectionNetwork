@@ -50,7 +50,11 @@ class VectorDetectionNetwork:
     """
 
     def __init__(self, train=False):
-        vdn_config = os.path.join(root_dir, "cfgs/resnet50/384x384_d256x3_adam_lr1e-3.yaml")
+        if train:
+            vdn_config = os.path.join(root_dir, "cfgs/resnet50/train.yaml")
+        else:
+            vdn_config = os.path.join(root_dir, "cfgs/resnet50/eval.yaml")
+
         lib_config.update_config(vdn_config)
 
         cudnn.benchmark = lib_config.config.CUDNN.BENCHMARK
@@ -164,6 +168,42 @@ class VectorDetectionNetwork:
         final_model_state_file = os.path.join(final_output_dir, 'final_state.pth.tar')
         logger.info('saving final model state to {}'.format(final_model_state_file))
         torch.save(self.model.module.state_dict(), final_model_state_file)
+
+    def eval(self):
+        cfgs = lib_config.config
+
+        logger, final_output_dir, tb_log_dir = lib_util.create_logger(cfgs, 'eval')
+        logger.info(pprint.pformat(cfgs))
+
+        # define loss function (criterion) and optimizer
+        crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
+        crit_vector = lib_loss.RegL2Loss().cuda()
+
+        normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                         std=[0.229, 0.224, 0.225])
+
+        valid_dataset = lib_dataset.CoCo(
+            cfgs,
+            cfgs.DATASET.ROOT,
+            cfgs.DATASET.TEST_SET,
+            False,
+            transforms.Compose([
+                transforms.ToTensor(),
+                normalize,
+            ])
+        )
+
+        valid_loader = torch.utils.data.DataLoader(
+            valid_dataset,
+            batch_size=cfgs.TEST.BATCH_SIZE * len(self.gpus),
+            shuffle=False,
+            num_workers=cfgs.WORKERS,
+            pin_memory=True
+        )
+
+        # evaluate on validation or test set (depending on the cfg)
+        perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
+                                               crit_heatmap, crit_vector, final_output_dir, 200)
 
     # @torchsnooper.snoop()
     def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):

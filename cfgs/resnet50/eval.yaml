@@ -1,18 +1,18 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/train'
-LOG_DIR: '/VDN/logs'
+OUTPUT_DIR: '/VDN/output/eval'
+LOG_DIR: '/VDN/logs/eval'
 WORKERS: 4
 
 DATASET:
   DATASET: 'coco'
   ROOT: '/Database/Done/pointer_10k'
   TRAIN_SET: 'train_pointer'
-  TEST_SET: 'val_pointer'
+  TEST_SET: 'test_pointer'
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_model'  # This name should exist in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/vdn_best.pth.tar'  # '/VDN/weights/pretrained/resnet50-19c8e357.pth'
+  PRETRAINED: '/VDN/weights/vdn_best.pth.tar'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height
@@ -47,8 +47,8 @@ TRAIN:
   LR: 0.001
   LR_FACTOR: 0.1
   LR_STEP:
-  - 90
-  - 120
+  - 100
+  - 150
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.0
