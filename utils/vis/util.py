@@ -192,6 +192,51 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True, 
     cv2.imwrite(file_name, grid_image)
 
 
+def save_batch_vectormaps(batch_image, batch_vectormaps, file_name, normalize=True, ratio=0.5):
+    """
+    :param batch_image: [batch_size, channel, height, width]
+    :param batch_vectormaps: ['batch_size, 2, height, width]
+    :param file_name: saved file name
+    :param normalize:
+    :param ratio:
+    :return:
+    """
+    if normalize:
+        batch_image = batch_image.clone()
+        min = float(batch_image.min())
+        max = float(batch_image.max())
+
+        batch_image.add_(-min).div_(max - min + 1e-5)
+
+    batch_size = batch_vectormaps.size(0)
+    heatmap_height = batch_vectormaps.size(2)
+    heatmap_width = batch_vectormaps.size(3)
+
+    grid_image = np.zeros((batch_size * heatmap_height, 3 * heatmap_width, 3), dtype=np.uint8)
+
+    for i in range(batch_size):
+        image = batch_image[i].mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
+        vectormaps = batch_vectormaps[i].add(1).mul(127.5).clamp(0, 255).byte().cpu().numpy()
+
+        resized_image = cv2.resize(image, (int(heatmap_width), int(heatmap_height)))
+
+        height_begin = heatmap_height * i
+        height_end = heatmap_height * (i + 1)
+
+        for k in range(2):
+            vectormap = vectormaps[k, :, :]
+            colored_vectormap = cv2.applyColorMap(vectormap, cv2.COLORMAP_JET)
+            masked_image = colored_vectormap * (1.0 - ratio) + resized_image * ratio
+
+            width_begin = heatmap_width * (k + 1)
+            width_end = heatmap_width * (k + 2)
+            grid_image[height_begin:height_end, width_begin:width_end, :] = masked_image
+
+        grid_image[height_begin:height_end, 0:heatmap_width, :] = resized_image
+
+    cv2.imwrite(file_name, grid_image)
+
+
 def apply_dot(draw, xy, w, h, idx=0):
     """
     """

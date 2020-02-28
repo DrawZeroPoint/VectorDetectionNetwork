@@ -39,7 +39,7 @@ def get_peaks_by_regions(heatmap):
 def get_peaks_by_local_maximum(heatmap):
     heatmap = img_as_float(heatmap)
 
-    """Peaks are the local maxima in a region of 2*min_distance+1
+    """Peaks are the local maximum in a region of 2*min_distance+1
     High pass filter on heatmap
     min_distance for 2 adjacent points to be reduced as 1, because the heatmap is small,
     we should use low min_distance to prevent points near the borders getting lost.
@@ -64,10 +64,10 @@ def get_peaks_by_local_maximum(heatmap):
 
 
 # @torchsnooper.snoop()
-def get_all_joint_preds(batch_heatmaps):
+def get_all_joint_preds(batch_heatmaps: np.ndarray):
     """Get predictions (n, c, k, 2), 2 for (x, y), from model output
 
-    :param batch_heatmaps: numpy.ndarray([batch_size, num_joints, height, width])
+    :param batch_heatmaps: [batch_size, num_joints, height, width]
     """
     assert isinstance(batch_heatmaps, np.ndarray), 'batch_heatmaps should be numpy.ndarray'
     assert batch_heatmaps.ndim == 4, 'batch_images should be 4-dim'
@@ -181,7 +181,8 @@ def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, ce
     # Transform back
     preds_end = None
     if preds_v is not None:
-        preds_end = preds_start + preds_v * 1000.
+        preds_end = preds_start + preds_v * 1000.  # *1000 to make the pointer significant
+
     for i in range(batch_sz):
         preds_start[i] = transform_preds(preds_start[i], center[i], scale[i], [heatmap_width, heatmap_height])
         if preds_v is not None:

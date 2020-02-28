@@ -30,7 +30,8 @@ class Test(unittest.TestCase):
             image_path = os.path.join(demo_data_dir, item)
             src_img = cv2.imread(image_path)
 
-            VDN.get_vectors(src_img, verbose=k+1)
+            print(f'Result of image {k+1}:')
+            VDN.get_vectors(src_img, verbose=item)
 
 
 if __name__ == '__main__':

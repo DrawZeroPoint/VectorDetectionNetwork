@@ -1,6 +1,6 @@
 # Welcome
 
-This is the codebase of the paper titled "Vector Detection Network: Pointer Points Detection Network Conquesting Pointer Detection in the Wild".
+This is the codebase of the paper titled "Vector Detection Network: Pointer Detector for Robots Reading Analog Meters in the Wild".
 We assume you download it with `git clone `, and the code folder `/VDN` is located in `~`.
 
 OS: Ubuntu 16.04 or 18.04

@@ -7,7 +7,6 @@ import pprint
 import shutil
 import sys
 import numpy as np
-import math
 
 import cv2
 import torch
@@ -36,6 +35,8 @@ import libs.models.vdn_model as vdn_model
 import utils.vis.util as vis_util
 from PIL import ImageDraw
 
+from typing import Optional
+
 
 sys.path.append(".")
 save = False
@@ -47,6 +48,7 @@ model_path = os.path.join(root_dir, "weights/vdn_best.pth.tar")
 class VectorDetectionNetwork:
     """
     """
+
     def __init__(self, train=False):
         vdn_config = os.path.join(root_dir, "cfgs/resnet50/384x384_d256x3_adam_lr1e-3.yaml")
         lib_config.update_config(vdn_config)
@@ -164,12 +166,12 @@ class VectorDetectionNetwork:
         torch.save(self.model.module.state_dict(), final_model_state_file)
 
     # @torchsnooper.snoop()
-    def get_vectors(self, roi_image: np.ndarray, verbose=0):
+    def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):
         """Given roi_image of pointer-type meter dial face, return vectors represented by 2 points [[[ps_x, ps_y],
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
 
         :param roi_image: 
-        :param verbose: if > 0, save result image with id=verbose
+        :param verbose: result image name
         :return:
         """
         model = self.model
@@ -177,17 +179,18 @@ class VectorDetectionNetwork:
 
         image_height = roi_image.shape[0]
         image_width = roi_image.shape[1]
-        
+
         center = np.array([image_width * 0.5, image_height * 0.5], dtype=np.float32)
 
         # TODO: use multiple scale factor like 16 on image dims
         shape = np.array([image_width / 160.0, image_height / 160.0], dtype=np.float32)
         rotation = 0
+
         trans = get_affine_transform(center, shape, rotation, cfgs.MODEL.IMAGE_SIZE)
 
         net_input = cv2.warpAffine(roi_image, trans,
-                               (int(cfgs.MODEL.IMAGE_SIZE[0]), int(cfgs.MODEL.IMAGE_SIZE[1])),
-                               flags=cv2.INTER_LINEAR)
+                                   (int(cfgs.MODEL.IMAGE_SIZE[0]), int(cfgs.MODEL.IMAGE_SIZE[1])),
+                                   flags=cv2.INTER_LINEAR)
 
         transform = transforms.Compose([transforms.ToTensor(),
                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
@@ -200,9 +203,9 @@ class VectorDetectionNetwork:
 
         with torch.no_grad():
             # compute output heat map
-            output_hm, output_v = model(net_input)
+            output_hm, output_vm = model(net_input)
             preds_start, preds_end, maxvals = get_final_preds(output_hm.clone().cpu().numpy(),
-                                                              output_v.clone().cpu().numpy(),
+                                                              output_vm.clone().cpu().numpy(),
                                                               np.asarray([center]), np.asarray([shape]))
 
             # squeeze the batch and joint dims
@@ -213,7 +216,7 @@ class VectorDetectionNetwork:
             # print('maxvals shape', maxvals.shape)
 
             # print("points", preds_start[0], "vectors", preds_end[0], "\n", "score", maxvals)
-            if verbose:
+            if verbose is not None:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
 
@@ -228,5 +231,7 @@ class VectorDetectionNetwork:
 
                 vis_util.save_batch_heatmaps(net_input, output_hm,
                                              os.path.join(self.output_dir, f'hmap_{verbose}.jpg'))
+                vis_util.save_batch_vectormaps(net_input, output_vm,
+                                               os.path.join(self.output_dir, f'vmap_{verbose}.jpg'))
 
             return preds_start, preds_end, maxvals
