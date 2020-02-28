@@ -1,10 +1,11 @@
+__author__ = 'tsungyi'
+
 import numpy as np
 import datetime
 import time
 from collections import defaultdict
 from . import mask as maskUtils
 import copy
-import torchsnooper
 
 
 class COCOeval:
@@ -17,6 +18,7 @@ class COCOeval:
     #  E.evaluate();                # run per image evaluation
     #  E.accumulate();              # accumulate per image results
     #  E.summarize();               # display summary metrics of results
+    # For example usage see evalDemo.m and http://mscoco.org/.
     #
     # The evaluation parameters are as follows (defaults in brackets):
     #  imgIds     - [all] N img ids to use for evaluation
@@ -49,14 +51,20 @@ class COCOeval:
     #  precision  - [TxRxKxAxM] precision for every evaluation setting
     #  recall     - [TxKxAxM] max recall for every evaluation setting
     # Note: precision and recall==-1 for settings with no gt objects.
-
+    #
+    # See also coco, mask, pycocoDemo, pycocoEvalDemo
+    #
+    # Microsoft COCO Toolbox.      version 2.0
+    # Data, paper, and tutorials available at:  http://mscoco.org/
+    # Code written by Piotr Dollar and Tsung-Yi Lin, 2015.
+    # Licensed under the Simplified BSD License [see coco/license.txt]
     def __init__(self, cocoGt=None, cocoDt=None, iouType='segm'):
-        """Initialize CocoEval using coco APIs for gt and dt
-
+        '''
+        Initialize CocoEval using coco APIs for gt and dt
         :param cocoGt: coco object with ground truth annotations
         :param cocoDt: coco object with detection results
         :return: None
-        """
+        '''
         if not iouType:
             print('iouType not specified. use default iouType segm')
         self.cocoGt = cocoGt  # ground truth COCO API
@@ -69,15 +77,16 @@ class COCOeval:
         self._paramsEval = {}  # parameters for evaluation
         self.stats = []  # result summarization
         self.ious = {}  # ious between all gts and dts
-        if cocoGt is not None:
+        if not cocoGt is None:
             self.params.imgIds = sorted(cocoGt.getImgIds())
             self.params.catIds = sorted(cocoGt.getCatIds())
 
     def _prepare(self):
-        """Prepare ._gts and ._dts for evaluation based on params
-
+        '''
+        Prepare ._gts and ._dts for evaluation based on params
         :return: None
-        """
+        '''
+
         def _toMask(anns, coco):
             # modify ann['segmentation'] by reference
             for ann in anns:
@@ -112,18 +121,17 @@ class COCOeval:
         self.eval = {}  # accumulated evaluation results
 
     def evaluate(self):
-        """Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
-
-        :return:
-        """
+        '''
+        Run per image evaluation on given images and store results (a list of dict) in self.evalImgs
+        :return: None
+        '''
         tic = time.time()
         print('Running per image evaluation...')
         p = self.params
         # add backward compatibility if useSegm is specified in params
-        if p.useSegm is not None:
+        if not p.useSegm is None:
             p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
             print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
-
         print('Evaluate annotation type *{}*'.format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
@@ -135,12 +143,11 @@ class COCOeval:
         # loop through images, area range, max detection number
         catIds = p.catIds if p.useCats else [-1]
 
-        if p.iouType == 'keypoints':
-            compute_iou = self.compute_oks
-        else:
-            compute_iou = self.computeIoU
-
-        self.ious = {(imgId, catId): compute_iou(imgId, catId)
+        if p.iouType == 'segm' or p.iouType == 'bbox':
+            computeIoU = self.computeIoU
+        elif p.iouType == 'keypoints':
+            computeIoU = self.computeOks
+        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
                      for imgId in p.imgIds
                      for catId in catIds}
 
@@ -184,10 +191,9 @@ class COCOeval:
         ious = maskUtils.iou(d, g, iscrowd)
         return ious
 
-    # @torchsnooper.snoop()
-    def compute_oks(self, imgId, catId):
+    def computeOks(self, imgId, catId):
         p = self.params
-        # dimension here should be Nxm
+        # dimention here should be Nxm
         gts = self._gts[imgId, catId]
         dts = self._dts[imgId, catId]
         inds = np.argsort([-d['score'] for d in dts], kind='mergesort')
@@ -205,19 +211,18 @@ class COCOeval:
         for j, gt in enumerate(gts):
             # create bounds for ignore regions(double the gt bbox)
             g = np.array(gt['keypoints'])
-            xg = g[0::3]
-            yg = g[1::3]
+            xg = g[0::3];
+            yg = g[1::3];
             vg = g[2::3]
             k1 = np.count_nonzero(vg > 0)
             bb = gt['bbox']
-            x0 = bb[0] - bb[2]
+            x0 = bb[0] - bb[2];
             x1 = bb[0] + bb[2] * 2
-            y0 = bb[1] - bb[3]
+            y0 = bb[1] - bb[3];
             y1 = bb[1] + bb[3] * 2
-            # print(xg, ' ', yg, ' ', vg, ' ', k1, ' ', bb, ' ', x0, ' ', x1, ' ', y0, ' ', y1)
             for i, dt in enumerate(dts):
                 d = np.array(dt['keypoints'])
-                xd = d[0::3]
+                xd = d[0::3];
                 yd = d[1::3]
                 if k1 > 0:
                     # measure the per-keypoint distance if keypoints visible
@@ -225,25 +230,20 @@ class COCOeval:
                     dy = yd - yg
                 else:
                     # measure minimum distance to keypoints in (x0,y0) & (x1,y1)
-                    z = np.zeros(k)
+                    z = np.zeros((k))
                     dx = np.max((z, x0 - xd), axis=0) + np.max((z, xd - x1), axis=0)
                     dy = np.max((z, y0 - yd), axis=0) + np.max((z, yd - y1), axis=0)
                 e = (dx ** 2 + dy ** 2) / vars / (gt['area'] + np.spacing(1)) / 2
                 if k1 > 0:
                     e = e[vg > 0]
-
                 ious[i, j] = np.sum(np.exp(-e)) / e.shape[0]
         return ious
 
     def evaluateImg(self, imgId, catId, aRng, maxDet):
-        """perform evaluation for single category and image
-
-        :param imgId:
-        :param catId:
-        :param aRng:
-        :param maxDet:
+        '''
+        perform evaluation for single category and image
         :return: dict (single image results)
-        """
+        '''
         p = self.params
         if p.useCats:
             gt = self._gts[imgId, catId]
@@ -320,11 +320,11 @@ class COCOeval:
         }
 
     def accumulate(self, p=None):
-        """Accumulate per image evaluation results and store the result in self.eval
-
+        '''
+        Accumulate per image evaluation results and store the result in self.eval
         :param p: input params for evaluation
-        :return:
-        """
+        :return: None
+        '''
         print('Accumulating evaluation results...')
         tic = time.time()
         if not self.evalImgs:
@@ -400,7 +400,7 @@ class COCOeval:
 
                         # numpy is slow without cython optimization for accessing elements
                         # use python array gets significant speed improvement
-                        pr = pr.tolist()
+                        pr = pr.tolist();
                         q = q.tolist()
 
                         for i in range(nd - 1, 0, -1):
@@ -428,11 +428,10 @@ class COCOeval:
         print('DONE (t={:0.2f}s).'.format(toc - tic))
 
     def summarize(self):
-        """
+        '''
         Compute and display summary metrics for evaluation results.
-        Note this function can *only* be applied on the default parameter setting
-        :return:
-        """
+        Note this functin can *only* be applied on the default parameter setting
+        '''
 
         def _summarize(ap=1, iouThr=None, areaRng='all', maxDets=100):
             p = self.params
@@ -518,8 +517,8 @@ class Params:
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
-        self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
+        self.iouThrs = np.linspace(.5, 0.95, int(np.round((0.95 - .5) / .05)) + 1, endpoint=True)
+        self.recThrs = np.linspace(.0, 1.00, int(np.round((1.00 - .0) / .01)) + 1, endpoint=True)
         self.maxDets = [1, 10, 100]
         self.areaRng = [[0 ** 2, 1e5 ** 2], [0 ** 2, 32 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
         self.areaRngLbl = ['all', 'small', 'medium', 'large']
@@ -529,12 +528,13 @@ class Params:
         self.imgIds = []
         self.catIds = []
         # np.arange causes trouble.  the data point on arange is slightly larger than the true value
-        self.iouThrs = np.linspace(.5, 0.95, np.round((0.95 - .5) / .05) + 1, endpoint=True)
-        self.recThrs = np.linspace(.0, 1.00, np.round((1.00 - .0) / .01) + 1, endpoint=True)
+        self.iouThrs = np.linspace(.5, 0.95, int(np.round((0.95 - .5) / .05)) + 1, endpoint=True)
+        self.recThrs = np.linspace(.0, 1.00, int(np.round((1.00 - .0) / .01)) + 1, endpoint=True)
         self.maxDets = [20]
         self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
         self.areaRngLbl = ['all', 'medium', 'large']
         self.useCats = 1
+        # self.kpt_oks_sigmas = np.array([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62,.62, 1.07, 1.07, .87, .87, .89, .89])/10.0
         self.kpt_oks_sigmas = np.array([.1, .1, .1]) / 10.0
 
     def __init__(self, iouType='segm'):
