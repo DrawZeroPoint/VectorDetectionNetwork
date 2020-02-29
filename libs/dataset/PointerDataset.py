@@ -107,12 +107,12 @@ class PointerDataset(JointsDataset):
         width = im_ann['width']
         height = im_ann['height']
 
+        # one img id is correspond to multiple annotation ids, each annotation is for a pointer,
+        # but these pointers all share the same bounding box.
         ann_ids = self.coco.getAnnIds(imgIds=index, iscrowd=False)
         objs = self.coco.loadAnns(ann_ids)
 
-        # We only have one bbox annotation for one image
-        # multiple objects (pointer, in this case) share the same bbox (same clock)
-        all_in_one_obj = None
+        shared_bbox = None
         for obj in objs:
             x, y, w, h = obj['bbox']
             x1 = np.max((0, x))
@@ -120,35 +120,36 @@ class PointerDataset(JointsDataset):
             x2 = np.min((width - 1, x1 + np.max((0, w - 1))))
             y2 = np.min((height - 1, y1 + np.max((0, h - 1))))
             if obj['area'] > 0 and x2 >= x1 and y2 >= y1:
-                obj['clean_bbox'] = [x1, y1, x2 - x1, y2 - y1]
-                all_in_one_obj = obj
+                shared_bbox = [x1, y1, x2 - x1, y2 - y1]
                 break
 
-        if all_in_one_obj is None:
-            raise ValueError('No bbox available')
+        if shared_bbox is None:
+            raise ValueError('No shared bbox available')
 
-        center, scale = self._box2cs(all_in_one_obj['clean_bbox'])
+        center, scale = self._box2cs(shared_bbox)
 
         vectors = []
         for k, obj in enumerate(objs):
             cls = self._coco_ind_to_class_ind[obj['category_id']]
             if cls != 1:
-                raise ValueError('class not equal to 1')
+                # Here we use 1 to represent the only class (meter) of the Pointer-10K dataset
+                raise ValueError(f'class name {cls} is not 1, please check the label')
 
             # Ignore objs without keypoints annotation
             if max(obj['keypoints']) == 0:
-                raise ValueError('no keypoint')
+                raise ValueError('No labeled keypoint in given object.')
 
             # We use the head of the pointer as the target while using the tail to calculate the vector
-            x0 = obj['keypoints'][6]
+            x0 = obj['keypoints'][6]  # (x0, y0) is the tip
             y0 = obj['keypoints'][7]
-            x1 = obj['keypoints'][0]
+            x1 = obj['keypoints'][0]  # (x1, y1) is the tail
             y1 = obj['keypoints'][1]
             vis = obj['keypoints'][2]
 
             pt = np.array([x0, y0, x1, y1, vis])
             vectors.append(pt)
 
+        # This process make the number of pointers within each bbox equals to 3
         sz = len(vectors)
         if sz < self.max_instance_num:
             i = self.max_instance_num - sz
