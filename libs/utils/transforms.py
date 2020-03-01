@@ -23,7 +23,7 @@ def transform_preds(coords, center, scale, output_size):
 def get_affine_transform(center, shape, rot, output_size, shift=np.array([0, 0], dtype=np.float32), inv=0):
     """
     """
-    shape_expanded = shape * 160.0
+    shape_expanded = shape * 200.0
     src_w = shape_expanded[0]
     dst_w = output_size[0]
     dst_h = output_size[1]

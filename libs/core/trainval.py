@@ -100,18 +100,21 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
     # switch to evaluate mode
     model.eval()
 
-    num_samples = len(val_dataset)
+    num_samples = len(val_dataset)  # Todo change the number as pointer number but not image number
 
     image_path = []
     filenames = []
     imgnums = []
     max_instance_num = 3  # how many instances could be in one sample image
-    idx = 0
+    # idx = 0
+
+    all_preds = None
+    all_boxes = None
 
     with torch.no_grad():
         end = time.time()
-        all_joint_preds = np.zeros((num_samples, max_instance_num, 3), dtype=np.float32)
-        all_boxes = np.zeros((num_samples, 6))
+        # all_joint_preds = np.zeros((num_samples, max_instance_num, 3), dtype=np.float32)
+        # all_boxes = np.zeros((num_samples, 6))
 
         for i, (input, target_heatmap, target_vectormap, meta) in enumerate(val_loader):
             
@@ -152,37 +155,87 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # sort the predictions and get the first 3 with highest score
             # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
             # joint_preds (b, j, k, 2), maxvals (b, j, k, 1)
-            sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
-            sorted_maxvals = -np.sort(-maxvals, 2)  # in descending order
-            k = min(joint_preds.shape[-2], max_instance_num)
-            joint_preds = np.squeeze(sorted_joint_preds, 1)  # squeeze the joint dim cause joint_num=1
-            maxvals = np.squeeze(sorted_maxvals, 1)
+            # sorted_joint_preds = joint_preds
+            # sorted_maxvals = maxvals
+            # sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
+            # sorted_maxvals = -np.sort(-maxvals, 2)  # in descending order
 
-            if joint_preds.shape[-1] == 2 and maxvals.shape[-1] == 1:
-                all_joint_preds[idx:idx + num_images, 0:k, 0:2] = joint_preds[:, 0:k, :]
-                all_joint_preds[idx:idx + num_images, 0:k, 2:3] = maxvals[:, 0:k, :]
+            det_num = min(joint_preds.shape[-2], max_instance_num)
+            for m in range(det_num):
+                js = joint_preds.shape
+                det_pred = np.zeros((js[0], js[1], 3, 2))
+                det_val = np.zeros((js[0], js[1], 3, 1))
+                det_pred[:, :, 0] = joint_preds[:, :, m]
+                det_val[:, :, 0] = maxvals[:, :, m]
 
-            all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
-            all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-            all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
-            all_boxes[idx:idx + num_images, 5] = score
+                # Keep exact 3 predictions, if the number is less than 3, add dummy data to preds
+                # k = joint_preds.shape[-2]
+                # if k < max_instance_num:
+                #     dummy_num = max_instance_num - k
+                #     dummy_pred = np.zeros((num_images, 1, 1, 2))
+                #     dummy_val = np.zeros((num_images, 1, 1, 1))
+                #     while dummy_num:
+                #         sorted_joint_preds = np.concatenate((sorted_joint_preds, dummy_pred), axis=2)
+                #         sorted_maxvals = np.concatenate((sorted_maxvals, dummy_val), axis=2)
+                #         dummy_num -= 1
+                #
+                # k = max_instance_num
 
-            image_path.extend(meta['image'])
-            idx += num_images
+                det_pred = np.squeeze(det_pred, 1)  # squeeze the joint dim cause joint_num=1
+                det_val = np.squeeze(det_val, 1)
 
-            if i % config.PRINT_FREQ == 0:
-                msg = 'Test: [{0}/{1}]\t' \
-                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
-                      'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                          i, len(val_loader), batch_time=batch_time,
-                          loss=losses, acc=acc)
-                logger.info(msg)
+                print('j pred ', det_pred[..., :])
+                print('v pred', det_val[..., :])
 
-                prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+                if det_pred.shape[-1] == 2 and det_val.shape[-1] == 1:
+                    if all_preds is None:
+                        all_preds = np.zeros((num_images, 3, 3))
+                        all_preds[:, 0:3, 0:2] = det_pred[:, 0:3, :]
+                        all_preds[:, 0:3, 2:3] = det_val[:, 0:3, :]
+                    else:
+                        tmp_preds = np.zeros((num_images, 3, 3))
+                        tmp_preds[:, 0:3, 0:2] = det_pred[:, 0:3, :]
+                        tmp_preds[:, 0:3, 2:3] = det_val[:, 0:3, :]
 
-        name_values, perf_indicator = val_dataset.evaluate(config, all_joint_preds, output_dir, all_boxes,
+                        all_preds = np.concatenate((all_preds, tmp_preds), axis=0)
+                    # all_joint_preds[idx:idx + num_images, 0:3, 0:2] = det_pred[:, 0:3, :]
+                    # all_joint_preds[idx:idx + num_images, 0:3, 2:3] = det_val[:, 0:3, :]
+
+                if all_boxes is None:
+                    all_boxes = np.zeros((num_images, 6))
+                    all_boxes[:, 0:2] = c[:, 0:2]
+                    all_boxes[:, 2:4] = s[:, 0:2]
+                    all_boxes[:, 4] = np.prod(s * 200, 1)
+                    all_boxes[:, 5] = score
+                else:
+                    tmp_boxes = np.zeros((num_images, 6))
+                    tmp_boxes[:, 0:2] = c[:, 0:2]
+                    tmp_boxes[:, 2:4] = s[:, 0:2]
+                    tmp_boxes[:, 4] = np.prod(s * 200, 1)
+                    tmp_boxes[:, 5] = score
+                    all_boxes = np.concatenate((all_boxes, tmp_boxes), axis=0)
+
+                # all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
+                # all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
+                # all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
+                # all_boxes[idx:idx + num_images, 5] = score
+
+                image_path.extend(meta['image'])
+                # idx += num_images
+
+                if i % config.PRINT_FREQ == 0:
+                    msg = 'Test: [{0}/{1}]\t' \
+                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                          'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                          'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+                              i, len(val_loader), batch_time=batch_time,
+                              loss=losses, acc=acc)
+                    logger.info(msg)
+
+                    prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
+                    save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+
+        name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
                                                            image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)

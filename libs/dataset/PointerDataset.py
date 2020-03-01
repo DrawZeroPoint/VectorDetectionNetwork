@@ -140,10 +140,10 @@ class PointerDataset(JointsDataset):
                 raise ValueError('No labeled keypoint in given object.')
 
             # We use the head of the pointer as the target while using the tail to calculate the vector
-            x0 = obj['keypoints'][6]  # (x0, y0) is the tip
-            y0 = obj['keypoints'][7]
-            x1 = obj['keypoints'][0]  # (x1, y1) is the tail
-            y1 = obj['keypoints'][1]
+            x0 = obj['keypoints'][0]  # (x0, y0) is the tip
+            y0 = obj['keypoints'][1]
+            x1 = obj['keypoints'][6]  # (x1, y1) is the tail
+            y1 = obj['keypoints'][7]
             vis = obj['keypoints'][2]
 
             pt = np.array([x0, y0, x1, y1, vis])
@@ -257,9 +257,10 @@ class PointerDataset(JointsDataset):
                 if valid_num != 0:
                     kpt_score = kpt_score / valid_num
 
-                # rescoring
                 n_p['score'] = kpt_score * box_score
+
             keep = oks_nms([img_kpts[i] for i in range(len(img_kpts))], oks_thre)
+
             if len(keep) == 0:
                 oks_nmsed_kpts.append(img_kpts)
             else:
@@ -326,6 +327,8 @@ class PointerDataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.load_res(res_file)
+        print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
+        print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
         coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()

@@ -129,9 +129,10 @@ class COCOeval:
         print('Running per image evaluation...')
         p = self.params
         # add backward compatibility if useSegm is specified in params
-        if not p.useSegm is None:
+        if p.useSegm is not None:
             p.iouType = 'segm' if p.useSegm == 1 else 'bbox'
             print('useSegm (deprecated) is not None. Running {} evaluation'.format(p.iouType))
+
         print('Evaluate annotation type *{}*'.format(p.iouType))
         p.imgIds = list(np.unique(p.imgIds))
         if p.useCats:
@@ -147,7 +148,8 @@ class COCOeval:
             computeIoU = self.computeIoU
         elif p.iouType == 'keypoints':
             computeIoU = self.computeOks
-        self.ious = {(imgId, catId): computeIoU(imgId, catId) \
+
+        self.ious = {(imgId, catId): computeIoU(imgId, catId)
                      for imgId in p.imgIds
                      for catId in catIds}
 
@@ -193,7 +195,7 @@ class COCOeval:
 
     def computeOks(self, imgId, catId):
         p = self.params
-        # dimention here should be Nxm
+        # dimension here should be Nxm
         gts = self._gts[imgId, catId]
         dts = self._dts[imgId, catId]
         inds = np.argsort([-d['score'] for d in dts], kind='mergesort')
@@ -206,23 +208,25 @@ class COCOeval:
         ious = np.zeros((len(dts), len(gts)))
         sigmas = p.kpt_oks_sigmas
         vars = (sigmas * 2) ** 2
+        print('cocoeval 211 sigmas, vars: ', sigmas, vars)
+
         k = len(sigmas)
         # compute oks between each detection and ground truth object
         for j, gt in enumerate(gts):
             # create bounds for ignore regions(double the gt bbox)
             g = np.array(gt['keypoints'])
-            xg = g[0::3];
-            yg = g[1::3];
+            xg = g[0::3]
+            yg = g[1::3]
             vg = g[2::3]
             k1 = np.count_nonzero(vg > 0)
             bb = gt['bbox']
-            x0 = bb[0] - bb[2];
+            x0 = bb[0] - bb[2]
             x1 = bb[0] + bb[2] * 2
-            y0 = bb[1] - bb[3];
+            y0 = bb[1] - bb[3]
             y1 = bb[1] + bb[3] * 2
             for i, dt in enumerate(dts):
                 d = np.array(dt['keypoints'])
-                xd = d[0::3];
+                xd = d[0::3]
                 yd = d[1::3]
                 if k1 > 0:
                     # measure the per-keypoint distance if keypoints visible
@@ -230,9 +234,11 @@ class COCOeval:
                     dy = yd - yg
                 else:
                     # measure minimum distance to keypoints in (x0,y0) & (x1,y1)
-                    z = np.zeros((k))
+                    z = np.zeros(k)
                     dx = np.max((z, x0 - xd), axis=0) + np.max((z, xd - x1), axis=0)
                     dy = np.max((z, y0 - yd), axis=0) + np.max((z, yd - y1), axis=0)
+
+                # spacing(1) serves as a small number to prevent divide by 0
                 e = (dx ** 2 + dy ** 2) / vars / (gt['area'] + np.spacing(1)) / 2
                 if k1 > 0:
                     e = e[vg > 0]
@@ -267,7 +273,8 @@ class COCOeval:
         dt = [dt[i] for i in dtind[0:maxDet]]
         iscrowd = [int(o['iscrowd']) for o in gt]
         # load computed ious
-        ious = self.ious[imgId, catId][:, gtind] if len(self.ious[imgId, catId]) > 0 else self.ious[imgId, catId]
+        ious = self.ious[imgId, catId][:, gtind] if len(self.ious[imgId, catId]) > 0 \
+            else self.ious[imgId, catId]
 
         T = len(p.iouThrs)
         G = len(gt)
@@ -534,7 +541,7 @@ class Params:
         self.areaRng = [[0 ** 2, 1e5 ** 2], [32 ** 2, 96 ** 2], [96 ** 2, 1e5 ** 2]]
         self.areaRngLbl = ['all', 'medium', 'large']
         self.useCats = 1
-        self.kpt_oks_sigmas = np.array([2, 2, 2])
+        self.kpt_oks_sigmas = np.array([.1, .1, .1])
 
     def __init__(self, iouType='segm'):
         if iouType == 'segm' or iouType == 'bbox':

@@ -12,6 +12,8 @@ from skimage.measure import regionprops
 from skimage.feature import peak_local_max
 from skimage import img_as_float
 
+from typing import Union
+
 from libs.utils.transforms import transform_preds
 
 
@@ -95,12 +97,12 @@ def get_all_joint_preds(batch_heatmaps: np.ndarray):
     return np.array(preds), np.array(maxvals)
 
 
-def get_all_orientation_preds(pred_all_joints, vector_maps):
+def get_all_orientation_preds(pred_all_joints, vector_maps) -> Union[np.ndarray, None]:
     """
 
     :param pred_all_joints: (b, j, k, 2), Notice that for the last dim, 2 values are x and y, not h and w
     :param vector_maps: (b, 2, h, w)
-    :return: ndarray (b, j, k, 2)
+    :return: (b, j, k, 2)
     """
     vector_map_width = vector_maps.shape[3]
     vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
@@ -159,13 +161,12 @@ def get_max_preds(batch_heatmaps):
     return preds, maxvals
 
 
-# @torchsnooper.snoop()
 def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, center, scale) \
                     -> [np.ndarray, np.ndarray]:
     """Get final vector origin and orientation predictions from heatmap and vectormap respectively.
 
     :param batch_heatmaps: (b, j, h, w)
-    :param batch_vectormaps: (b, j, h, w)
+    :param batch_vectormaps: (b, 2, h, w)
     :param center: (b, 2)
     :param scale: (b, 2)
     :return: preds_start, preds_end (b, j, k, 2); maxvals (b, j, k, 1)

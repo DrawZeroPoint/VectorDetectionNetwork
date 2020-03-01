@@ -142,8 +142,8 @@ class COCO:
             else:
                 anns = self.dataset['annotations']
             anns = anns if len(catIds) == 0 else [ann for ann in anns if ann['category_id'] in catIds]
-            anns = anns if len(areaRng) == 0 else [ann for ann in anns if
-                                                   ann['area'] > areaRng[0] and ann['area'] < areaRng[1]]
+            anns = anns if len(areaRng) == 0 else [ann for ann in anns if areaRng[0] < ann['area'] < areaRng[1]]
+
         if iscrowd is not None:
             ids = [ann['id'] for ann in anns if ann['iscrowd'] == iscrowd]
         else:
@@ -307,7 +307,7 @@ class COCO:
 
         print('Loading and preparing results...')
         tic = time.time()
-        if type(result_file) == str or type(result_file) == unicode:
+        if type(result_file) == str:
             anns = json.load(open(result_file))
         elif type(result_file) == np.ndarray:
             anns = self.loadNumpyAnnotations(result_file)
