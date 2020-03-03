@@ -3,6 +3,7 @@
 
 import logging
 import os
+import copy
 import pickle
 from collections import defaultdict
 from collections import OrderedDict
@@ -35,6 +36,7 @@ class PointerDataset(JointsDataset):
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.pixel_std = 200
         self.coco = COCO(self._get_ann_file())
+        self.coco_vds = self.generate_vds(copy.deepcopy(self.coco))
 
         # deal with class names
         cats = [cat['name'] for cat in self.coco.loadCats(self.coco.getCatIds())]
@@ -272,6 +274,74 @@ class PointerDataset(JointsDataset):
         name_value = OrderedDict(info_str)
         return name_value, name_value['AP']
 
+    def evaluate_vds(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
+        """
+
+        :param cfg:
+        :param preds: (num_samples, max_instance_num, 3)
+        :param output_dir:
+        :param all_boxes: (num_samples, 6)
+        :param img_path:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        res_folder = os.path.join(output_dir, 'results')
+        if not os.path.exists(res_folder):
+            os.makedirs(res_folder)
+        res_file = os.path.join(res_folder, 'vds_%s_results.json' % self.image_set)
+
+        preds_list = []
+        for idx, kpt in enumerate(preds):
+            preds_list.append({
+                'keypoints': kpt,
+                'center': all_boxes[idx][0:2],
+                'scale': all_boxes[idx][2:4],
+                'area': all_boxes[idx][4],
+                'score': all_boxes[idx][5],
+                'image': int(img_path[idx][-16:-4])
+            })
+
+        kpts = defaultdict(list)
+        for kpt in preds_list:
+            kpts[kpt['image']].append(kpt)
+
+        # rescoring and oks nms
+        num_joints = 3
+        in_vis_thre = self.in_vis_thre  # 0.2
+        oks_thre = self.oks_thre
+        oks_nmsed_kpts = []
+
+        for img in kpts.keys():
+            img_kpts = kpts[img]
+            for n_p in img_kpts:
+                box_score = n_p['score']
+                kpt_score = 0
+                valid_num = 0
+                for n_jt in range(0, num_joints):
+                    trust_score = n_p['keypoints'][n_jt][2]
+                    if trust_score > in_vis_thre:
+                        kpt_score = kpt_score + trust_score
+                        valid_num += 1
+
+                if valid_num != 0:
+                    kpt_score = kpt_score / valid_num
+
+                n_p['score'] = kpt_score * box_score
+
+            keep = oks_nms([img_kpts[i] for i in range(len(img_kpts))], oks_thre)
+
+            if len(keep) == 0:
+                oks_nmsed_kpts.append(img_kpts)
+            else:
+                oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
+
+        self._write_coco_keypoint_results(oks_nmsed_kpts, res_file)
+
+        info_str = self._do_python_vds_eval(res_file, res_folder)
+        name_value = OrderedDict(info_str)
+        return name_value, name_value['AP']
+
     def _write_coco_keypoint_results(self, keypoints, res_file):
         data_pack = [{'cat_id': self._class_to_coco_ind[cls],
                       'cls_ind': cls_ind,
@@ -347,3 +417,48 @@ class PointerDataset(JointsDataset):
         logger.info('=> coco eval results saved to %s' % eval_file)
 
         return info_str
+
+    def _do_python_vds_eval(self, res_file, res_folder):
+        coco_dt = self.coco.load_res(res_file)
+        # print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
+        # print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
+        coco_eval = COCOeval(self.coco_vds, coco_dt, 'keypoints')
+        coco_eval.params.useSegm = None
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+        stats_names = ['AP', 'Ap .5', 'AP .75', 'AP (M)', 'AP (L)', 'AR', 'AR .5', 'AR .75', 'AR (M)', 'AR (L)']
+
+        info_str = []
+        for ind, name in enumerate(stats_names):
+            info_str.append((name, coco_eval.stats[ind]))
+
+        eval_file = os.path.join(res_folder, 'vds_%s_results.pkl' % self.image_set)
+
+        with open(eval_file, 'wb') as f:
+            pickle.dump(coco_eval, f, pickle.HIGHEST_PROTOCOL)
+        logger.info('=> VDS eval results saved to %s' % eval_file)
+
+        return info_str
+
+    def generate_vds(self, coco_cp):
+        anns = coco_cp.anns
+
+        assert 'keypoints' in anns[0]
+        for id, ann in enumerate(anns):
+            s = ann['keypoints']
+            x = s[0::3]
+            y = s[1::3]
+            vx = x[0] - x[-1]
+            vy = y[0] - y[-1]
+            rad = np.arctan2(vy, vx)
+            deg = np.rad2deg(rad)
+
+            x0, x1, y0, y1 = np.min(x), np.max(x), np.min(y), np.max(y)
+            ann['area'] = (x1 - x0) * (y1 - y0)
+            ann['id'] = id + 1
+            ann['bbox'] = [x0, y0, x1 - x0, y1 - y0]
+
+            ann['keypoints'][0:2] = deg
+
+        return coco_cp

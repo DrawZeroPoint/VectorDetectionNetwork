@@ -12,7 +12,7 @@ import libs.core.inference as lib_inference
 from libs.core.config import get_model_name
 from libs.core.evaluate import accuracy
 from libs.utils.vis import save_debug_images
-from libs.utils.utils import sort_multi_dimension_array
+from libs.utils.utils import vector_components_to_deg
 
 
 logger = logging.getLogger(__name__)
@@ -100,21 +100,17 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
     # switch to evaluate mode
     model.eval()
 
-    num_samples = len(val_dataset)  # Todo change the number as pointer number but not image number
-
     image_path = []
     filenames = []
     imgnums = []
     max_instance_num = 3  # how many instances could be in one sample image
-    # idx = 0
 
-    all_preds = None
+    all_kp_preds = None  # keypoint location preds for OKS metric
+    all_vd_preds = None  # vector direction preds for VDS metric
     all_boxes = None
 
     with torch.no_grad():
         end = time.time()
-        # all_joint_preds = np.zeros((num_samples, max_instance_num, 3), dtype=np.float32)
-        # all_boxes = np.zeros((num_samples, 6))
 
         for i, (input, target_heatmap, target_vectormap, meta) in enumerate(val_loader):
             
@@ -128,8 +124,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             v_loss = crit_vector(out_vector, target_vectormap)
             loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
 
-            num_images = input.size(0)
-            # measure accuracy and record loss
+            num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
 
             _, avg_acc, cnt, pred_j, pred_v = accuracy(
@@ -147,10 +142,10 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
 
             c = meta['center'].numpy()
             s = meta['scale'].numpy()
-            score = meta['score'].numpy()
+            score = meta['score'].numpy()  # default 1
 
-            joint_preds, _, maxvals = lib_inference.get_final_preds(out_heatmap.clone().cpu().numpy(),
-                                                                    out_vector.clone().cpu().numpy(), c, s)
+            j_preds, _, v_preds, maxvals = lib_inference.get_final_preds(out_heatmap.clone().cpu().numpy(),
+                                                                         out_vector.clone().cpu().numpy(), c, s)
 
             # sort the predictions and get the first 3 with highest score
             # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
@@ -160,46 +155,39 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
             # sorted_maxvals = -np.sort(-maxvals, 2)  # in descending order
 
-            det_num = min(joint_preds.shape[-2], max_instance_num)
+            det_num = min(j_preds.shape[-2], max_instance_num)
             for m in range(det_num):
-                js = joint_preds.shape
-                det_pred = np.zeros((js[0], js[1], 3, 2))
+                js = j_preds.shape
+                det_j_pred = np.zeros((js[0], js[1], 3, 2))
+                det_v_pred = np.zeros((js[0], js[1], 3, 2))
                 det_val = np.zeros((js[0], js[1], 3, 1))
-                det_pred[:, :, 0] = joint_preds[:, :, m]
+                det_j_pred[:, :, 0] = j_preds[:, :, m]
+                det_v_pred[:, :, 0] = v_preds[:, :, m]
                 det_val[:, :, 0] = maxvals[:, :, m]
 
-                # Keep exact 3 predictions, if the number is less than 3, add dummy data to preds
-                # k = joint_preds.shape[-2]
-                # if k < max_instance_num:
-                #     dummy_num = max_instance_num - k
-                #     dummy_pred = np.zeros((num_images, 1, 1, 2))
-                #     dummy_val = np.zeros((num_images, 1, 1, 1))
-                #     while dummy_num:
-                #         sorted_joint_preds = np.concatenate((sorted_joint_preds, dummy_pred), axis=2)
-                #         sorted_maxvals = np.concatenate((sorted_maxvals, dummy_val), axis=2)
-                #         dummy_num -= 1
-                #
-                # k = max_instance_num
-
-                det_pred = np.squeeze(det_pred, 1)  # squeeze the joint dim cause joint_num=1
+                det_j_pred = np.squeeze(det_j_pred, 1)  # squeeze the joint dim cause joint_num=1
+                det_v_pred = np.squeeze(det_v_pred, 1)
                 det_val = np.squeeze(det_val, 1)
 
-                # print('j pred ', det_pred[..., :])
-                # print('v pred', det_val[..., :])
-
-                if det_pred.shape[-1] == 2 and det_val.shape[-1] == 1:
-                    if all_preds is None:
-                        all_preds = np.zeros((num_images, 3, 3))
-                        all_preds[:, 0:3, 0:2] = det_pred[:, 0:3, :]
-                        all_preds[:, 0:3, 2:3] = det_val[:, 0:3, :]
+                if det_j_pred.shape[-1] == 2 and det_val.shape[-1] == 1:
+                    if all_kp_preds is None:
+                        all_kp_preds = np.zeros((num_images, 3, 3))
+                        all_kp_preds[:, 0:3, 0:2] = det_j_pred[:, 0:3, :]
+                        all_kp_preds[:, 0:3, 2:3] = det_val[:, 0:3, :]
                     else:
                         tmp_preds = np.zeros((num_images, 3, 3))
-                        tmp_preds[:, 0:3, 0:2] = det_pred[:, 0:3, :]
+                        tmp_preds[:, 0:3, 0:2] = det_j_pred[:, 0:3, :]
                         tmp_preds[:, 0:3, 2:3] = det_val[:, 0:3, :]
+                        all_kp_preds = np.concatenate((all_kp_preds, tmp_preds), axis=0)
 
-                        all_preds = np.concatenate((all_preds, tmp_preds), axis=0)
-                    # all_joint_preds[idx:idx + num_images, 0:3, 0:2] = det_pred[:, 0:3, :]
-                    # all_joint_preds[idx:idx + num_images, 0:3, 2:3] = det_val[:, 0:3, :]
+                    det_ang_pred = vector_components_to_deg(det_v_pred)
+                    if all_vd_preds is None:
+                        all_vd_preds = np.ones((num_images, 3, 3))
+                        all_vd_preds[:, 0:3, :] = det_ang_pred[:, 0:3, :]
+                    else:
+                        tmp_preds = np.zeros((num_images, 3, 3))
+                        tmp_preds[:, :, :] = det_ang_pred[:, :, :]
+                        all_vd_preds = np.concatenate((all_vd_preds, tmp_preds), axis=0)
 
                 if all_boxes is None:
                     all_boxes = np.zeros((num_images, 6))
@@ -215,13 +203,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                     tmp_boxes[:, 5] = score
                     all_boxes = np.concatenate((all_boxes, tmp_boxes), axis=0)
 
-                # all_boxes[idx:idx + num_images, 0:2] = c[:, 0:2]
-                # all_boxes[idx:idx + num_images, 2:4] = s[:, 0:2]
-                # all_boxes[idx:idx + num_images, 4] = np.prod(s*200, 1)
-                # all_boxes[idx:idx + num_images, 5] = score
-
                 image_path.extend(meta['image'])
-                # idx += num_images
 
                 if i % config.PRINT_FREQ == 0:
                     msg = 'Test: [{0}/{1}]\t' \
@@ -235,8 +217,10 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                     prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                     save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
-        name_values, perf_indicator = val_dataset.evaluate(config, all_preds, output_dir, all_boxes,
+        name_values, perf_indicator = val_dataset.evaluate(config, all_kp_preds, output_dir, all_boxes,
                                                            image_path, filenames, imgnums)
+
+        val_dataset.evaluate_vds(config, all_vd_preds, output_dir, all_boxes, image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)
         if isinstance(name_values, list):

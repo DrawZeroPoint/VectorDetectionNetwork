@@ -98,6 +98,26 @@ def sort_multi_dimension_array(sort_array: np.ndarray, ind_array: np.ndarray, ax
         return sort_array
 
 
+def vector_components_to_deg(cmp: np.ndarray):
+    """This function is tailored for converting predicted vector components to degree
+    fitted specific format to compute with coco eval
+
+    :param cmp: (b, k, 2), 2 for vx, vy
+    :return: (b, k, 3), 3 for (deg, deg, 1)
+    """
+    assert cmp.ndim == 3
+
+    x_cmp = cmp[:, :, 0]
+    y_cmp = cmp[:, :, 1]
+
+    rad = np.arctan2(y_cmp, x_cmp)
+    deg = np.rad2deg(rad)
+
+    out = np.ones((cmp.shape[0], cmp.shape[1], 3))
+    out[:, :, 0:2] = np.concatenate((deg, deg), axis=-1)
+    return out
+
+
 if __name__ == "__main__":
     sort_arr = np.array([[[8, 5], [9, 6], [2, 2], [4, 3]]])
     ind_arr = np.array([[[1], [5], [4], [10]]])

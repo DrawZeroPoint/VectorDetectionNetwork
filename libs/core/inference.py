@@ -162,14 +162,14 @@ def get_max_preds(batch_heatmaps):
 
 
 def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, center, scale) \
-                    -> [np.ndarray, np.ndarray]:
+                    -> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Get final vector origin and orientation predictions from heatmap and vectormap respectively.
 
     :param batch_heatmaps: (b, j, h, w)
     :param batch_vectormaps: (b, 2, h, w)
     :param center: (b, 2)
     :param scale: (b, 2)
-    :return: preds_start, preds_end (b, j, k, 2); maxvals (b, j, k, 1)
+    :return: preds_start, preds_end (b, j, k, 2); pred_v (b, j, k, 2); maxvals (b, j, k, 1)
     """
     batch_sz = batch_heatmaps.shape[0]
     heatmap_height = batch_heatmaps.shape[2]
@@ -177,6 +177,7 @@ def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, ce
 
     # preds_start (b, j, k, 2)
     preds_start, maxvals = get_all_joint_preds(batch_heatmaps)
+    # preds_v (b, j, k, 2)
     preds_v = get_all_orientation_preds(preds_start, batch_vectormaps)
 
     # Transform back
@@ -192,4 +193,4 @@ def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, ce
     # print('pred shape', preds_start.shape)
     # print('maxvals shape', maxvals.shape)
     maxvals = np.expand_dims(maxvals, -1)
-    return preds_start, preds_end, maxvals
+    return preds_start, preds_end, preds_v, maxvals
