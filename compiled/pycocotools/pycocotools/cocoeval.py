@@ -208,7 +208,6 @@ class COCOeval:
         ious = np.zeros((len(dts), len(gts)))
         sigmas = p.kpt_oks_sigmas
         vars = (sigmas * 2) ** 2
-        print('cocoeval 211 sigmas, vars: ', sigmas, vars)
 
         k = len(sigmas)
         # compute oks between each detection and ground truth object

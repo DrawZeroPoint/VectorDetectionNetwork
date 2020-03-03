@@ -327,8 +327,8 @@ class PointerDataset(JointsDataset):
 
     def _do_python_keypoint_eval(self, res_file, res_folder):
         coco_dt = self.coco.load_res(res_file)
-        print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
-        print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
+        # print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
+        # print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
         coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()

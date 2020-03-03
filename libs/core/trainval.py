@@ -184,8 +184,8 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                 det_pred = np.squeeze(det_pred, 1)  # squeeze the joint dim cause joint_num=1
                 det_val = np.squeeze(det_val, 1)
 
-                print('j pred ', det_pred[..., :])
-                print('v pred', det_val[..., :])
+                # print('j pred ', det_pred[..., :])
+                # print('v pred', det_val[..., :])
 
                 if det_pred.shape[-1] == 2 and det_val.shape[-1] == 1:
                     if all_preds is None:
