@@ -36,7 +36,7 @@ class PointerDataset(JointsDataset):
         self.aspect_ratio = self.image_width * 1.0 / self.image_height
         self.pixel_std = 200
         self.coco = COCO(self._get_ann_file())
-        self.coco_vds = self.generate_vds(copy.deepcopy(self.coco))
+        self.coco_vds = self.generate_vds()
 
         # deal with class names
         cats = [cat['name'] for cat in self.coco.loadCats(self.coco.getCatIds())]
@@ -424,6 +424,10 @@ class PointerDataset(JointsDataset):
         # print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
         coco_eval = COCOeval(self.coco_vds, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
+
+        # Specifically set the sigma of VDS. Note here we borrowed the variable from OKS
+        coco_eval.params.kpt_oks_sigmas = np.array([.2, .2, .2])
+
         coco_eval.evaluate()
         coco_eval.accumulate()
         coco_eval.summarize()
@@ -441,11 +445,11 @@ class PointerDataset(JointsDataset):
 
         return info_str
 
-    def generate_vds(self, coco_cp):
+    def generate_vds(self):
+        coco_cp = copy.deepcopy(self.coco)
         anns = coco_cp.anns
 
-        assert 'keypoints' in anns[0]
-        for id, ann in enumerate(anns):
+        for ann in anns.values():
             s = ann['keypoints']
             x = s[0::3]
             y = s[1::3]
@@ -456,9 +460,10 @@ class PointerDataset(JointsDataset):
 
             x0, x1, y0, y1 = np.min(x), np.max(x), np.min(y), np.max(y)
             ann['area'] = (x1 - x0) * (y1 - y0)
-            ann['id'] = id + 1
             ann['bbox'] = [x0, y0, x1 - x0, y1 - y0]
 
-            ann['keypoints'][0:2] = deg
+            ann['keypoints'][0] = deg
+            ann['keypoints'][1] = deg
 
+        # print('=>', anns)
         return coco_cp

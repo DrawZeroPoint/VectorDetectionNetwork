@@ -155,6 +155,10 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # sorted_joint_preds = sort_multi_dimension_array(joint_preds, maxvals, 2)
             # sorted_maxvals = -np.sort(-maxvals, 2)  # in descending order
 
+            if j_preds.ndim != 4 or j_preds.shape[-1] != 2:
+                print('=> invalid joint prediction')
+                continue
+
             det_num = min(j_preds.shape[-2], max_instance_num)
             for m in range(det_num):
                 js = j_preds.shape
@@ -217,28 +221,35 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                     prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                     save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
-        name_values, perf_indicator = val_dataset.evaluate(config, all_kp_preds, output_dir, all_boxes,
-                                                           image_path, filenames, imgnums)
+        oks_metric, perf_indicator = val_dataset.evaluate(config, all_kp_preds, output_dir, all_boxes,
+                                                          image_path, filenames, imgnums)
 
-        val_dataset.evaluate_vds(config, all_vd_preds, output_dir, all_boxes, image_path, filenames, imgnums)
+        vds_metric, _ = val_dataset.evaluate_vds(config, all_vd_preds, output_dir, all_boxes,
+                                                 image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)
-        if isinstance(name_values, list):
-            for name_value in name_values:
+        if isinstance(oks_metric, list):
+            for name_value in oks_metric:
                 _print_name_value(name_value, full_arch_name)
         else:
-            _print_name_value(name_values, full_arch_name)
+            _print_name_value(oks_metric, full_arch_name)
+
+        if isinstance(vds_metric, list):
+            for name_value in vds_metric:
+                _print_name_value(name_value, full_arch_name)
+        else:
+            _print_name_value(vds_metric, full_arch_name)
 
         if writer_dict:
             writer = writer_dict['writer']
             global_steps = writer_dict['valid_global_steps']
             writer.add_scalar('valid_loss', losses.avg, global_steps)
             writer.add_scalar('valid_acc', acc.avg, global_steps)
-            if isinstance(name_values, list):
-                for name_value in name_values:
+            if isinstance(oks_metric, list):
+                for name_value in oks_metric:
                     writer.add_scalars('valid', dict(name_value), global_steps)
             else:
-                writer.add_scalars('valid', dict(name_values), global_steps)
+                writer.add_scalars('valid', dict(oks_metric), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator

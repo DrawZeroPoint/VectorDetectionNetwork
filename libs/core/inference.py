@@ -49,7 +49,7 @@ def get_peaks_by_local_maximum(heatmap):
     """
     coordinates = peak_local_max(heatmap, min_distance=3, threshold_rel=0.1)
     if not list(coordinates):
-        print('------> get_peaks_by_local_maximum: no peak')
+        print('==> get_peaks_by_local_maximum: no peak')
 
     peaks = []
     peakvals = []

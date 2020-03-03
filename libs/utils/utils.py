@@ -114,7 +114,10 @@ def vector_components_to_deg(cmp: np.ndarray):
     deg = np.rad2deg(rad)
 
     out = np.ones((cmp.shape[0], cmp.shape[1], 3))
-    out[:, :, 0:2] = np.concatenate((deg, deg), axis=-1)
+    out[:, :, 0] = deg[0][0]
+    out[:, :, 1] = deg[0][0]
+
+    # print('==>', out)
     return out
 
 
