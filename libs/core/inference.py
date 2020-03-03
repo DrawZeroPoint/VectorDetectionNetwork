@@ -149,7 +149,7 @@ def get_max_preds(batch_heatmaps):
     maxvals = maxvals.reshape((batch_size, num_joints, 1))
     idx = idx.reshape((batch_size, num_joints, 1))
 
-    # Given predicted pixel idx, get its coordinate (x, y) as preds
+    # Given predicted pixel idx, get its coordinate (x, y) as kp_preds
     preds = np.tile(idx, (1, 1, 2)).astype(np.float32)
     preds[:, :, 0] = (preds[:, :, 0]) % width
     preds[:, :, 1] = np.floor((preds[:, :, 1]) / width)

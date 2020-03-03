@@ -45,7 +45,7 @@ class JointsDataset(Dataset):
     def _get_db(self):
         raise NotImplementedError
 
-    def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
+    def evaluate(self, cfg, kp_preds, vd_preds, output_dir, all_boxes, img_path, *args, **kwargs):
         raise NotImplementedError
 
     def select_data(self, db):

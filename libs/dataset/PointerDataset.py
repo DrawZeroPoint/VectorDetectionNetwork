@@ -206,11 +206,12 @@ class PointerDataset(JointsDataset):
 
         return image_path
 
-    def evaluate(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
-        """
+    def evaluate(self, cfg, kp_preds, vd_preds, output_dir, all_boxes, img_path, *args, **kwargs):
+        """Evaluate the performance of VDN regarding OKS and VDS
 
         :param cfg:
-        :param preds: (num_samples, max_instance_num, 3)
+        :param kp_preds: (num_samples, max_instance_num, 3)
+        :param vd_preds: (num_samples, max_instance_num, 3)
         :param output_dir:
         :param all_boxes: (num_samples, 6)
         :param img_path:
@@ -221,11 +222,27 @@ class PointerDataset(JointsDataset):
         res_folder = os.path.join(output_dir, 'results')
         if not os.path.exists(res_folder):
             os.makedirs(res_folder)
-        res_file = os.path.join(res_folder, 'keypoints_%s_results.json' % self.image_set)
 
-        preds_list = []
-        for idx, kpt in enumerate(preds):
-            preds_list.append({
+        kp_res_file = os.path.join(res_folder, f'keypoints_{self.image_set}_results.json')
+        vd_res_file = os.path.join(res_folder, f'directions_{self.image_set}_results.json')
+
+        oks_nmsed = self.get_nmsed(kp_preds, all_boxes, img_path)
+        vds_nmsed = self.get_nmsed(vd_preds, all_boxes, img_path)
+
+        self._write_coco_keypoint_results(oks_nmsed, kp_res_file)
+        self._write_coco_keypoint_results(vds_nmsed, vd_res_file)
+
+        kp_info_str = self._do_python_keypoint_eval(kp_res_file, res_folder)
+        vd_info_str = self._do_python_vds_eval(vd_res_file, res_folder)
+
+        kp_ap_ar = OrderedDict(kp_info_str)
+        vd_ap_ar = OrderedDict(vd_info_str)
+        return kp_ap_ar, vd_ap_ar, kp_ap_ar['AP']
+
+    def get_nmsed(self, kp_preds, all_boxes, img_path):
+        kp_preds_list = []
+        for idx, kpt in enumerate(kp_preds):
+            kp_preds_list.append({
                 'keypoints': kpt,
                 'center': all_boxes[idx][0:2],
                 'scale': all_boxes[idx][2:4],
@@ -235,10 +252,9 @@ class PointerDataset(JointsDataset):
             })
 
         kpts = defaultdict(list)
-        for kpt in preds_list:
+        for kpt in kp_preds_list:
             kpts[kpt['image']].append(kpt)
 
-        # rescoring and oks nms
         num_joints = 3
         in_vis_thre = self.in_vis_thre  # 0.2
         oks_thre = self.oks_thre
@@ -268,79 +284,7 @@ class PointerDataset(JointsDataset):
             else:
                 oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
 
-        self._write_coco_keypoint_results(oks_nmsed_kpts, res_file)
-
-        info_str = self._do_python_keypoint_eval(res_file, res_folder)
-        name_value = OrderedDict(info_str)
-        return name_value, name_value['AP']
-
-    def evaluate_vds(self, cfg, preds, output_dir, all_boxes, img_path, *args, **kwargs):
-        """
-
-        :param cfg:
-        :param preds: (num_samples, max_instance_num, 3)
-        :param output_dir:
-        :param all_boxes: (num_samples, 6)
-        :param img_path:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        res_folder = os.path.join(output_dir, 'results')
-        if not os.path.exists(res_folder):
-            os.makedirs(res_folder)
-        res_file = os.path.join(res_folder, 'vds_%s_results.json' % self.image_set)
-
-        preds_list = []
-        for idx, kpt in enumerate(preds):
-            preds_list.append({
-                'keypoints': kpt,
-                'center': all_boxes[idx][0:2],
-                'scale': all_boxes[idx][2:4],
-                'area': all_boxes[idx][4],
-                'score': all_boxes[idx][5],
-                'image': int(img_path[idx][-16:-4])
-            })
-
-        kpts = defaultdict(list)
-        for kpt in preds_list:
-            kpts[kpt['image']].append(kpt)
-
-        # rescoring and oks nms
-        num_joints = 3
-        in_vis_thre = self.in_vis_thre  # 0.2
-        oks_thre = self.oks_thre
-        oks_nmsed_kpts = []
-
-        for img in kpts.keys():
-            img_kpts = kpts[img]
-            for n_p in img_kpts:
-                box_score = n_p['score']
-                kpt_score = 0
-                valid_num = 0
-                for n_jt in range(0, num_joints):
-                    trust_score = n_p['keypoints'][n_jt][2]
-                    if trust_score > in_vis_thre:
-                        kpt_score = kpt_score + trust_score
-                        valid_num += 1
-
-                if valid_num != 0:
-                    kpt_score = kpt_score / valid_num
-
-                n_p['score'] = kpt_score * box_score
-
-            keep = oks_nms([img_kpts[i] for i in range(len(img_kpts))], oks_thre)
-
-            if len(keep) == 0:
-                oks_nmsed_kpts.append(img_kpts)
-            else:
-                oks_nmsed_kpts.append([img_kpts[_keep] for _keep in keep])
-
-        self._write_coco_keypoint_results(oks_nmsed_kpts, res_file)
-
-        info_str = self._do_python_vds_eval(res_file, res_folder)
-        name_value = OrderedDict(info_str)
-        return name_value, name_value['AP']
+        return oks_nmsed_kpts
 
     def _write_coco_keypoint_results(self, keypoints, res_file):
         data_pack = [{'cat_id': self._class_to_coco_ind[cls],
@@ -420,8 +364,6 @@ class PointerDataset(JointsDataset):
 
     def _do_python_vds_eval(self, res_file, res_folder):
         coco_dt = self.coco.load_res(res_file)
-        # print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
-        # print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
         coco_eval = COCOeval(self.coco_vds, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
 

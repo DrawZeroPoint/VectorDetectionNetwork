@@ -125,11 +125,11 @@ def save_np_heatmaps(batch_heatmaps, file_name, is_max=False):
 
             if is_max:
                 p = preds[i][j]
-                # print(f'preds max {i}, {j}: {p}')
+                # print(f'kp_preds max {i}, {j}: {p}')
                 cv2.circle(colored_heatmap, (int(p[0]), int(p[1])), 1, [0, 255, 0], 1)
             else:
                 for p in preds[i][j]:
-                    # print(f'preds all {i}, {j}: {p}')
+                    # print(f'kp_preds all {i}, {j}: {p}')
                     cv2.circle(colored_heatmap, (int(p[0]), int(p[1])), 1, [0, 255, 0], 1)
 
             width_begin = heatmap_width * j

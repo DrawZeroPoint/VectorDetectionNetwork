@@ -105,8 +105,8 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
     imgnums = []
     max_instance_num = 3  # how many instances could be in one sample image
 
-    all_kp_preds = None  # keypoint location preds for OKS metric
-    all_vd_preds = None  # vector direction preds for VDS metric
+    all_kp_preds = None  # keypoint location kp_preds for OKS metric
+    all_vd_preds = None  # vector direction kp_preds for VDS metric
     all_boxes = None
 
     with torch.no_grad():
@@ -221,11 +221,9 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                     prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                     save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
 
-        oks_metric, perf_indicator = val_dataset.evaluate(config, all_kp_preds, output_dir, all_boxes,
-                                                          image_path, filenames, imgnums)
-
-        vds_metric, _ = val_dataset.evaluate_vds(config, all_vd_preds, output_dir, all_boxes,
-                                                 image_path, filenames, imgnums)
+        oks_metric, vds_metric, perf_indicator = val_dataset.evaluate(config, all_kp_preds, all_vd_preds,
+                                                                      output_dir, all_boxes,
+                                                                      image_path, filenames, imgnums)
 
         _, full_arch_name = get_model_name(config)
         if isinstance(oks_metric, list):
@@ -250,6 +248,11 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                     writer.add_scalars('valid', dict(name_value), global_steps)
             else:
                 writer.add_scalars('valid', dict(oks_metric), global_steps)
+            if isinstance(vds_metric, list):
+                for name_value in vds_metric:
+                    writer.add_scalars('vds', dict(name_value), global_steps)
+                else:
+                    writer.add_scalars('vds', dict(vds_metric), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
