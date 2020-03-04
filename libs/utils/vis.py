@@ -6,56 +6,56 @@ import torchvision
 
 from libs.core.inference import get_all_joint_preds
 
+from utils.vis.util import save_batch_vectormaps
 
-def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expand=1, nrow=8, padding=0):
+
+def save_batch_image_with_vectors(batch_image, joints, orients, file_name, expand=1, nrow=8):
     """
 
-    :param batch_image:
-    :param joints: joints
-    :param orients: (b, k, 2)
+    :param batch_image: (b, c, h, w)
+    :param joints: (b, j, k=3, 2)
+    :param orients: (b, j, k=3, 2)
     :param file_name:
     :param expand:
     :param nrow:
-    :param padding:
     :return:
     """
-    grid = torchvision.utils.make_grid(batch_image, nrow, padding, True)
-    ndarr = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
-    ndarr = ndarr.copy()
+    grid = torchvision.utils.make_grid(batch_image, nrow, 0, True)
+    np_img = grid.mul(255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
+    np_img = np_img.copy()
 
     if orients is None:
-        cv2.imwrite(file_name, ndarr)
+        print('=> Vector direction unavailable')
+        cv2.imwrite(file_name, np_img)
         return
 
-    nmaps = batch_image.size(0)
-    xmaps = min(nrow, nmaps)
-    ymaps = int(math.ceil(float(nmaps) / xmaps))
-    height = int(batch_image.size(2) + padding)
-    width = int(batch_image.size(3) + padding)
+    b_size = batch_image.size(0)
+
+    n_x = min(nrow, b_size)
+    n_y = int(math.ceil(float(b_size) / n_x))
+    height = int(batch_image.size(2))
+    width = int(batch_image.size(3))
+
     b = 0
-
-    for y in range(ymaps):
-        for x in range(xmaps):
-            if b >= nmaps:
-                break
-
+    for y in range(n_y):
+        for x in range(n_x):
             j = joints[b]
             v = orients[b]
             for joint_list, vec_list in zip(j, v):
                 for joint, vec in zip(joint_list, vec_list):
                     joint[0] *= expand
                     joint[1] *= expand
-                    joint[0] += x * width + padding
-                    joint[1] += y * height + padding
+                    joint[0] += x * width
+                    joint[1] += y * height
                     px = int(joint[0])
                     py = int(joint[1])
-                    vx = int(vec[0] * 10000)
-                    vy = int(vec[1] * 10000)
-                    cv2.circle(ndarr, (px, py), 2, [0, 255, 0], 2)
-                    cv2.line(ndarr, (px, py), (px + vx, py + vy), (0, 255, 0), 3)
+                    vx = int(vec[0] * 1000)
+                    vy = int(vec[1] * 1000)
+                    cv2.circle(np_img, (px, py), 2, [0, 255, 0], 2)
+                    cv2.line(np_img, (px, py), (px + vx, py + vy), (0, 255, 0), 3)
             b += 1
 
-    cv2.imwrite(file_name, ndarr)
+    cv2.imwrite(file_name, np_img)
 
 
 def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True):
@@ -109,7 +109,20 @@ def save_batch_heatmaps(batch_image, batch_heatmaps, file_name, normalize=True):
     cv2.imwrite(file_name, grid_image)
 
 
-def save_debug_images(config, input, meta, target, pred_j, pred_v, output, prefix):
+def save_debug_images(config, input, meta, target, pred_j, pred_v, out_hm, out_vm, prefix):
+    """Save result images for debugging
+
+    :param config:
+    :param input:
+    :param meta:
+    :param target:
+    :param pred_j:
+    :param pred_v:
+    :param out_hm:
+    :param out_vm:
+    :param prefix:
+    :return:
+    """
     if not config.DEBUG.DEBUG:
         return
 
@@ -119,8 +132,9 @@ def save_debug_images(config, input, meta, target, pred_j, pred_v, output, prefi
         gt_o = gt_v - gt_j
         save_batch_image_with_vectors(input, gt_j, gt_o, '{}_gt.jpg'.format(prefix), expand=1)
     if config.DEBUG.SAVE_BATCH_IMAGES_PRED:
-        save_batch_image_with_vectors(input, pred_j, pred_v, '{}_pred.jpg'.format(prefix), expand=4)
+        save_batch_image_with_vectors(input, pred_j, pred_v, '{}_pred.jpg'.format(prefix), expand=4)  # 4=384/96
     if config.DEBUG.SAVE_HEATMAPS_GT:
-        save_batch_heatmaps(input, target, '{}_hm_gt.jpg'.format(prefix))
+        save_batch_heatmaps(input, target, f'{prefix}_hm_gt.jpg')
     if config.DEBUG.SAVE_HEATMAPS_PRED:
-        save_batch_heatmaps(input, output, '{}_hm_pred.jpg'.format(prefix))
+        save_batch_heatmaps(input, out_hm, f'{prefix}_hm_pred.jpg')
+        save_batch_vectormaps(input, out_vm, f'{prefix}_vm_pred_.jpg')

@@ -88,7 +88,8 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                 writer_dict['train_global_steps'] = global_steps + 1
 
             prefix = '{}_{}'.format(os.path.join(output_dir, 'train'), i)
-            save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+            save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v,
+                              out_heatmap, out_vector, prefix)
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, epoch):
@@ -115,21 +116,21 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
         for i, (input, target_heatmap, target_vectormap, meta) in enumerate(val_loader):
             
             # compute output
-            out_heatmap, out_vector = model(input)
+            out_hm, out_vm = model(input)
 
             target_heatmap = target_heatmap.cuda(non_blocking=True)
             target_vectormap = target_vectormap.cuda(non_blocking=True)
 
-            j_loss = crit_heatmap(out_heatmap, target_heatmap)
-            v_loss = crit_vector(out_vector, target_vectormap)
+            j_loss = crit_heatmap(out_hm, target_heatmap)
+            v_loss = crit_vector(out_vm, target_vectormap)
             loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
 
             num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
 
             _, avg_acc, cnt, pred_j, pred_v = accuracy(
-                out_heatmap.detach().cpu().numpy(),
-                out_vector.detach().cpu().numpy(),
+                out_hm.detach().cpu().numpy(),
+                out_vm.detach().cpu().numpy(),
                 target_heatmap.detach().cpu().numpy(),
                 target_vectormap.squeeze(1).detach().cpu().numpy()  # reduce the joint dim (=1)
             )
@@ -144,8 +145,8 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             s = meta['scale'].numpy()
             score = meta['score'].numpy()  # default 1
 
-            j_preds, _, v_preds, maxvals = lib_inference.get_final_preds(out_heatmap.clone().cpu().numpy(),
-                                                                         out_vector.clone().cpu().numpy(), c, s)
+            j_preds, _, v_preds, maxvals = lib_inference.get_final_preds(out_hm.clone().cpu().numpy(),
+                                                                         out_vm.clone().cpu().numpy(), c, s)
 
             # sort the predictions and get the first 3 with highest score
             # k is the instance number predicted, only get the first 3 instances if k > max_instance_num
@@ -209,17 +210,18 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
 
                 image_path.extend(meta['image'])
 
-                if i % config.PRINT_FREQ == 0:
-                    msg = 'Test: [{0}/{1}]\t' \
-                          'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
-                          'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
-                          'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
-                              i, len(val_loader), batch_time=batch_time,
-                              loss=losses, acc=acc)
-                    logger.info(msg)
+            if i % config.PRINT_FREQ == 0:
+                msg = 'Test: [{0}/{1}]\t' \
+                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t' \
+                      'Loss {loss.val:.4f} ({loss.avg:.4f})\t' \
+                      'Accuracy {acc.val:.3f} ({acc.avg:.3f})'.format(
+                          i, len(val_loader), batch_time=batch_time,
+                          loss=losses, acc=acc)
+                logger.info(msg)
 
-                    prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
-                    save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v, out_heatmap, prefix)
+                prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
+                save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v,
+                                  out_hm, out_vm, prefix)
 
         oks_metric, vds_metric, perf_indicator = val_dataset.evaluate(config, all_kp_preds, all_vd_preds,
                                                                       output_dir, all_boxes,

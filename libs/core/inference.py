@@ -183,7 +183,7 @@ def get_final_preds(batch_heatmaps: np.ndarray, batch_vectormaps: np.ndarray, ce
     # Transform back
     preds_end = None
     if preds_v is not None:
-        preds_end = preds_start + preds_v * 1000.  # *1000 to make the pointer significant
+        preds_end = preds_start + preds_v * 10000.  # *10000 to make the pointer significant
 
     for i in range(batch_sz):
         preds_start[i] = transform_preds(preds_start[i], center[i], scale[i], [heatmap_width, heatmap_height])

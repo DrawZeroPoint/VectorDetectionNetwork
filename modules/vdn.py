@@ -221,7 +221,6 @@ class VectorDetectionNetwork:
 
         center = np.array([image_width * 0.5, image_height * 0.5], dtype=np.float32)
 
-        # TODO: use multiple scale factor like 16 on image dims
         shape = np.array([image_width / 200.0, image_height / 200.0], dtype=np.float32)
         rotation = 0
 
