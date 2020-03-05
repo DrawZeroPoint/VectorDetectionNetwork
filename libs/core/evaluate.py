@@ -87,7 +87,7 @@ def accuracy(heatmaps, vectormaps, target_heatmaps, target_vectormaps):
     for i in range(len(idx)):
         acc[i + 1] = (dist_acc(dists_j[idx[i]]) + dist_acc(dists_v[idx[i]])) * 0.5
         if acc[i + 1] >= 0:
-            avg_acc = avg_acc + acc[i + 1]
+            avg_acc += acc[i + 1]
             cnt += 1
 
     avg_acc = avg_acc / cnt if cnt != 0 else 0

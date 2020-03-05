@@ -300,18 +300,6 @@ class PointerDataset(JointsDataset):
         with open(res_file, 'w') as f:
             json.dump(results, f, sort_keys=True, indent=4)
 
-        # try:
-        #     json.load(open(res_file))
-        # except FileNotFoundError:
-        #     content = []
-        #     with open(res_file, 'r') as f:
-        #         for line in f:
-        #             content.append(line)
-        #     content[-1] = ']'
-        #     with open(res_file, 'w') as f:
-        #         for c in content:
-        #             f.write(c)
-
     def _coco_keypoint_results_one_category_kernel(self, data_pack):
         cat_id = data_pack['cat_id']
         keypoints = data_pack['keypoints']

@@ -130,9 +130,9 @@ def save_debug_images(config, input, meta, target, pred_j, pred_v, out_hm, out_v
         gt_j = meta['joints_xyv'][:, :, :, 0:2]
         gt_v = meta['joints_xyv'][:, :, :, 2:4]
         gt_o = gt_v - gt_j
-        save_batch_image_with_vectors(input, gt_j, gt_o, '{}_gt.jpg'.format(prefix), expand=1)
+        save_batch_image_with_vectors(input, gt_j, gt_o, f'{prefix}_gt.jpg', expand=1)
     if config.DEBUG.SAVE_BATCH_IMAGES_PRED:
-        save_batch_image_with_vectors(input, pred_j, pred_v, '{}_pred.jpg'.format(prefix), expand=4)  # 4=384/96
+        save_batch_image_with_vectors(input, pred_j, pred_v, f'{prefix}_pred.jpg', expand=4)  # 4=384/96
     if config.DEBUG.SAVE_HEATMAPS_GT:
         save_batch_heatmaps(input, target, f'{prefix}_hm_gt.jpg')
     if config.DEBUG.SAVE_HEATMAPS_PRED:

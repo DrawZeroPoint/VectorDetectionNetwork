@@ -123,7 +123,7 @@ class JointsDataset(Dataset):
             input_t = self.transform(input_t)
 
         # joints_xyv [num_joints, k, 5] -> (x0, y0, x1, y1, v)
-        # n is the keypoint number of each target, k is the instance number, here k===3
+        # n is the keypoint number of each target, k is the instance number, here k==3
         # if in an image the instance number is less than 3, then for the absence instances v==0
         for n in range(self.num_joints):
             for k in range(joints_xyv.shape[1]):
