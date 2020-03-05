@@ -104,6 +104,7 @@ def get_all_orientation_preds(pred_all_joints, vector_maps) -> Union[np.ndarray,
     :param vector_maps: (b, 2, h, w)
     :return: (b, j, k, 2)
     """
+    batch_sz = pred_all_joints.shape[0]
     vector_map_width = vector_maps.shape[3]
     vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
 
@@ -112,21 +113,32 @@ def get_all_orientation_preds(pred_all_joints, vector_maps) -> Union[np.ndarray,
         y = pred_all_joints[:, :, :, 1]
         idx = x + y * vector_map_width
         preds_idx = np.squeeze(idx, 1)  # (b, k)
-    elif len(pred_all_joints.shape) == 3 and pred_all_joints.shape[-1] != 0:
+    elif pred_all_joints.ndim == 3 and pred_all_joints.shape[-1] != 0:
         x = pred_all_joints[:, :, 0]
         y = pred_all_joints[:, :, 1]
         idx = x + y * vector_map_width
         preds_idx = idx  # (b, k)
+    elif pred_all_joints.ndim == 2:
+        preds_idx = np.zeros((batch_sz, 3), dtype=np.long)
+        for b in range(batch_sz):
+            pred_list = pred_all_joints[b][0]
+            for k, pred_array in enumerate(pred_list):
+                if k == 3:
+                    break
+                x = pred_array[0]
+                y = pred_array[1]
+                idx = x + y * vector_map_width
+                preds_idx[b][k] = idx
     else:
         return None
 
+    exp_idx = np.expand_dims(preds_idx, axis=1)  # (b, 1, k)
+    xy_idx = np.concatenate((exp_idx, exp_idx), axis=1)  # (b, 2, k)
+
     vectormaps_t = torch.from_numpy(vector_maps)  # (b, 2, 96*96)
-    preds_idx_t = torch.from_numpy(preds_idx)  # (b, k)
+    xy_idx_t = torch.from_numpy(xy_idx)  # (b, 2, k)
 
-    preds_idx_t = preds_idx_t.expand(preds_idx_t.size(0), 2, preds_idx_t.size(1))  # (b, 2, k)
-    # print(f'preds_idx_t {preds_idx_t.size()} {preds_idx_t} vectormap_t {vectormaps_t.size()}')
-
-    preds_vector_t = vectormaps_t.gather(2, preds_idx_t)  # (b, 2, k)
+    preds_vector_t = vectormaps_t.gather(2, xy_idx_t)  # (b, 2, k)
     preds_vector = preds_vector_t.permute(0, 2, 1).unsqueeze(1).numpy()  # (b, j=1, k, 2)
 
     return preds_vector
