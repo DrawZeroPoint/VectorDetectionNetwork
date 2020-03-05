@@ -108,7 +108,7 @@ def get_all_orientation_preds(pred_all_joints, vector_maps) -> Union[np.ndarray,
     vector_map_width = vector_maps.shape[3]
     vector_maps = np.reshape(vector_maps, (vector_maps.shape[0], vector_maps.shape[1], -1))
 
-    if len(pred_all_joints.shape) == 4 and pred_all_joints.shape[-1] != 0:
+    if pred_all_joints.ndim == 4 and pred_all_joints.shape[-1] != 0:
         x = pred_all_joints[:, :, :, 0]
         y = pred_all_joints[:, :, :, 1]
         idx = x + y * vector_map_width
