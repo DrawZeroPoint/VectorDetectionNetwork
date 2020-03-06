@@ -7,7 +7,7 @@ DATASET:
   DATASET: 'coco'
   ROOT: '/Database/Done/pointer_10k'
   TRAIN_SET: 'train_pointer'
-  TEST_SET: 'val_pointer'
+  TEST_SET: 'test_pointer'
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
