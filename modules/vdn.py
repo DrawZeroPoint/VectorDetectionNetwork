@@ -3,6 +3,7 @@
 
 
 import os
+import time
 import pprint
 import shutil
 import sys
@@ -239,12 +240,16 @@ class VectorDetectionNetwork:
         # switch to evaluate mode
         model.eval()
 
+        start = time.time()
         with torch.no_grad():
             # compute output heat map
             output_hm, output_vm = model(net_input)
             preds_start, preds_end, _, maxvals = get_final_preds(output_hm.clone().cpu().numpy(),
                                                                  output_vm.clone().cpu().numpy(),
                                                                  np.asarray([center]), np.asarray([shape]))
+
+            spent = time.time() - start
+            print(spent)
 
             # squeeze the batch and joint dims
             preds_start = np.squeeze(preds_start, (0, 1))
