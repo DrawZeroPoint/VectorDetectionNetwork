@@ -69,12 +69,13 @@ def get_optimizer(cfg, model):
 
 def save_checkpoint(states, is_best, output_dir):
     filename = states['model'][0]
-    ckpt_name = '_'.join((filename, 'checkpoint.pth.tar'))
+    ep_num = states['epoch']
+    ckpt_name = '_'.join((filename, f'epoch_{ep_num}.pth.tar'))
     best_name = '_'.join((filename, 'best.pth.tar'))
-    # torch.save(states, os.path.join(output_dir, ckpt_name))
-    if states['epoch'] % 40 == 0 and states['epoch'] != 0:
-        torch.save(states['state_dict'], os.path.join(output_dir, best_name))
-    if is_best and 'state_dict' in states:
+
+    if states['epoch'] % 50 == 0 and states['epoch'] != 0:
+        torch.save(states['state_dict'], os.path.join(output_dir, ckpt_name))
+    if is_best and states['epoch'] >= 100 and 'state_dict' in states:
         torch.save(states['state_dict'], os.path.join(output_dir, best_name))
 
 

@@ -38,11 +38,11 @@ from PIL import ImageDraw
 
 from typing import Optional
 
+
 sys.path.append(".")
 save = False
 
 root_dir = '/VDN'
-model_path = os.path.join(root_dir, "weights/vdn_best.pth.tar")
 
 
 class VectorDetectionNetwork:
@@ -63,6 +63,7 @@ class VectorDetectionNetwork:
 
         if not train:
             model = vdn_model.get_vdn_resnet(lib_config.config, is_train=False)
+            model_path = lib_config.config.MODEL.PRETRAINED
             model.load_state_dict({k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
         else:
             model = vdn_model.get_vdn_resnet(lib_config.config, is_train=True)
@@ -149,9 +150,9 @@ class VectorDetectionNetwork:
 
             if perf_indicator > best_perf:
                 best_perf = perf_indicator
-                best_model = True
+                is_best_model = True
             else:
-                best_model = False
+                is_best_model = False
 
             logger.info('=> saving checkpoint to {}'.format(final_output_dir))
             lib_util.save_checkpoint({
@@ -160,10 +161,7 @@ class VectorDetectionNetwork:
                 'state_dict': self.model.state_dict(),
                 'perf': perf_indicator,
                 'optimizer': optimizer.state_dict(),
-            }, best_model, final_output_dir)
-
-            if epoch % 40 == 0 and epoch != 0:
-                torch.save(self.model.module.state_dict(), os.path.join(final_output_dir, f'{epoch}.pth.tar'))
+            }, is_best_model, final_output_dir)
 
         final_model_state_file = os.path.join(final_output_dir, 'final_state.pth.tar')
         logger.info('saving final model state to {}'.format(final_model_state_file))
