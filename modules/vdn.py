@@ -51,9 +51,9 @@ class VectorDetectionNetwork:
 
     def __init__(self, train=False):
         if train:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/train.yaml")
+            vdn_config = os.path.join(root_dir, "cfgs/resnet101/train.yaml")
         else:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/eval.yaml")
+            vdn_config = os.path.join(root_dir, "cfgs/resnet101/eval.yaml")
 
         lib_config.update_config(vdn_config)
 
