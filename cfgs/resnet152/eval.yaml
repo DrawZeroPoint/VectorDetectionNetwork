@@ -12,7 +12,7 @@ DATASET:
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_model'  # This name should exist in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/vdn_152.pth.tar'
+  PRETRAINED: '/VDN/weights/vdn_model_152_best.pth.tar'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height
