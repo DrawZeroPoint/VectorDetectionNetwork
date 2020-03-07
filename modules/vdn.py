@@ -200,8 +200,8 @@ class VectorDetectionNetwork:
         )
 
         # evaluate on validation or test set (depending on the cfg)
-        perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                                               crit_heatmap, crit_vector, final_output_dir, 200)
+        lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
+                              crit_heatmap, crit_vector, final_output_dir, 200)
 
     # @torchsnooper.snoop()
     def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):
