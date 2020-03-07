@@ -1,5 +1,5 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/train'
+OUTPUT_DIR: '/VDN/output/train-34'
 LOG_DIR: '/VDN/logs/train'
 WORKERS: 4
 
