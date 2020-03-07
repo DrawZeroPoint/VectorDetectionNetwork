@@ -320,7 +320,7 @@ resnet_spec = {18: (BasicBlock, [2, 2, 2, 2]),
 
 
 def get_vdn_resnet(cfg, is_train, **kwargs):
-    num_layers = cfg.MODEL.EXTRA.NUM_LAYERS  # 50
+    num_layers = cfg.MODEL.EXTRA.NUM_LAYERS  # default 50
     style = cfg.MODEL.STYLE
 
     block_class, layers = resnet_spec[num_layers]
