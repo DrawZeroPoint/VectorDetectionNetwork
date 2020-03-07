@@ -116,7 +116,7 @@ in the data, please contact us via email. The address will be released afterward
 
 Before training the VDN model, (i) make sure you have the Pointer-10K dataset located in `~/Database/Done/pointer_10k`.
 (ii) Download the pretrained resnet model `resnet50-19c8e357.pth` for parameter initialization from 
-[torchvision](https://download.pytorch.org/models/resnet50-19c8e357.pth)
+[torchvision](https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py)
 and put it in `weights/pretrained/` (you may need to create the path manually). 
 
 ```
