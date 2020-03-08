@@ -1,5 +1,5 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/eval'
+OUTPUT_DIR: '/VDN/output/eval-resnet34'
 LOG_DIR: '/VDN/logs/eval'
 WORKERS: 4
 
