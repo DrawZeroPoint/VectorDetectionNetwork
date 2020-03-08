@@ -210,7 +210,6 @@ class VectorDetectionNetwork:
         lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
                               crit_heatmap, crit_vector, cfgs.TRAIN.END_EPOCH, final_output_dir)
 
-    # @torchsnooper.snoop()
     def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):
         """Given roi_image of pointer-type meter dial face, return vectors represented by 2 points [[[ps_x, ps_y],
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
@@ -254,7 +253,7 @@ class VectorDetectionNetwork:
                                                                  np.asarray([center]), np.asarray([shape]))
 
             spent = time.time() - start
-            print(spent)
+            print('inference time (s): ', spent)
 
             # squeeze the batch and joint dims
             preds_start = np.squeeze(preds_start, (0, 1))

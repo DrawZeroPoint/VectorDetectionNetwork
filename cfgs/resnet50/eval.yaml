@@ -1,6 +1,6 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/eval'
-LOG_DIR: '/VDN/logs/eval'
+OUTPUT_DIR: '/VDN/output/eval-resnet50'
+LOG_DIR: '/VDN/logs/eval-resnet50'
 WORKERS: 4
 
 DATASET:
@@ -12,7 +12,7 @@ DATASET:
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_model'  # This name should exist in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/vdn_best.pth.tar'
+  PRETRAINED: '/VDN/weights/vdn_model_50_best.pth.tar'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height

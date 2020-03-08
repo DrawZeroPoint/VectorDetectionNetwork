@@ -10,10 +10,10 @@ import modules.vdn as vdn
 
 class Test(unittest.TestCase):
 
-    def test_demo(self):
+    def test_demo_default(self):
         """
         """
-        VDN = vdn.VectorDetectionNetwork()
+        VDN = vdn.VectorDetectionNetwork(backbone='resnet50')
 
         demo_data_dir = "./data/demo"
         file_list = os.listdir(demo_data_dir)
@@ -29,8 +29,8 @@ class Test(unittest.TestCase):
             image_path = os.path.join(demo_data_dir, item)
             src_img = cv2.imread(image_path)
 
-            print(f'Result of image {k+1}:')
-            VDN.get_vectors(src_img, verbose=item)
+            print(f'Result of image {k+1}: {item}')
+            VDN.get_vectors(src_img, verbose=item[:-4])
 
 
 if __name__ == '__main__':

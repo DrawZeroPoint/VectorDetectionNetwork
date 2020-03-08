@@ -9,10 +9,10 @@ import modules.vdn as vdn
 
 class Test(unittest.TestCase):
 
-    def test_eval(self):
+    def test_eval_default(self):
         """
         """
-        vdn_instance = vdn.VectorDetectionNetwork()
+        vdn_instance = vdn.VectorDetectionNetwork(backbone='resnet50')
         vdn_instance.eval()
 
 
