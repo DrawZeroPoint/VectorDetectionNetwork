@@ -19,6 +19,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 
+from tensorboardX import SummaryWriter
+
 import libs.core.config as lib_config
 from libs.core.config import get_model_name
 
@@ -49,11 +51,11 @@ class VectorDetectionNetwork:
     """
     """
 
-    def __init__(self, train=False):
+    def __init__(self, train=False, backbone='resnet50'):
         if train:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/train.yaml")
+            vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/train.yaml")
         else:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/eval.yaml")
+            vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/eval.yaml")
 
         lib_config.update_config(vdn_config)
 
@@ -86,6 +88,12 @@ class VectorDetectionNetwork:
         # copy model file for reference
         this_dir = os.path.dirname(__file__)
         shutil.copy2(os.path.join(this_dir, '../libs/models', cfgs.MODEL.NAME + '.py'), final_output_dir)
+
+        writer_dict = {
+            'writer': SummaryWriter(log_dir=tb_log_dir),
+            'train_global_steps': 0,
+            'valid_global_steps': 0,
+        }
 
         # define loss function (criterion) and optimizer
         crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
@@ -139,14 +147,14 @@ class VectorDetectionNetwork:
         for epoch in range(cfgs.TRAIN.BEGIN_EPOCH, cfgs.TRAIN.END_EPOCH):
             # train for one epoch
             lib_function.train(cfgs, train_loader, self.model, crit_heatmap, crit_vector,
-                               optimizer, epoch, final_output_dir)
+                               optimizer, epoch, final_output_dir, writer_dict)
 
             #  In PyTorch 1.1.0 and later, you should call optimizer.step() before lr_scheduler.step().
             lr_scheduler.step()
 
             # evaluate on validation set
             perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                                                   crit_heatmap, crit_vector, final_output_dir, epoch)
+                                                   crit_heatmap, crit_vector, epoch, final_output_dir, writer_dict)
 
             if perf_indicator > best_perf:
                 best_perf = perf_indicator
@@ -154,7 +162,6 @@ class VectorDetectionNetwork:
             else:
                 is_best_model = False
 
-            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
             lib_util.save_checkpoint({
                 'epoch': epoch + 1,
                 'model': get_model_name(cfgs),
@@ -201,7 +208,7 @@ class VectorDetectionNetwork:
 
         # evaluate on validation or test set (depending on the cfg)
         lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                              crit_heatmap, crit_vector, final_output_dir, 200)
+                              crit_heatmap, crit_vector, cfgs.TRAIN.END_EPOCH, final_output_dir)
 
     # @torchsnooper.snoop()
     def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):
