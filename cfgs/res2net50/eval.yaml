@@ -1,23 +1,22 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/weights/output'
-LOG_DIR: '/VDN/logs'
+OUTPUT_DIR: '/VDN/output/eval-res2net50'
+LOG_DIR: '/VDN/logs/eval'
 WORKERS: 4
 
 DATASET:
   DATASET: 'coco'
-  ROOT: '/Database/Done/0_meter_recognition/pointer_dataset/'
+  ROOT: '/Database/Done/pointer_10k'
   TRAIN_SET: 'train_pointer'
-  TEST_SET: 'val_pointer'
-  FLIP: false
+  TEST_SET: 'test_pointer'
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
-  NAME: 'vdn_res2net'  # This should be the same name of the file in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/pretrained/res2net50_26w_6s-19041792.pth'
+  NAME: 'vdn_res2net'  # This name should exist in /VDN/libs/models
+  PRETRAINED: '/VDN/weights/vdn_res2net_50_best.pth.tar'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height
-  NUM_JOINTS: 5
+  NUM_JOINTS: 1
   EXTRA:
     TARGET_TYPE: 'gaussian'
     HEATMAP_SIZE:
@@ -42,21 +41,21 @@ TRAIN:
   BATCH_SIZE: 2
   SHUFFLE: true
   BEGIN_EPOCH: 0
-  END_EPOCH: 160
+  END_EPOCH: 200
   RESUME: false
   OPTIMIZER: 'adam'
   LR: 0.001
   LR_FACTOR: 0.1
   LR_STEP:
-  - 90
-  - 120
+  - 100
+  - 150
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.0
   MOMENTUM: 0.9
   NESTEROV: false
 TEST:
-  BATCH_SIZE: 2
+  BATCH_SIZE: 1
   COCO_BBOX_FILE:
   BBOX_THRE: 1.0
   FLIP_TEST: false
