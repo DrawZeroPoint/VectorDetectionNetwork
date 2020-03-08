@@ -259,10 +259,7 @@ class VectorDetectionNetwork:
             preds_start = np.squeeze(preds_start, (0, 1))
             preds_end = np.squeeze(preds_end, (0, 1))
             maxvals = np.squeeze(maxvals, (0, 1))
-            # print('pred shape', preds_start.shape)
-            # print('maxvals shape', maxvals.shape)
 
-            # print("points", preds_start[0], "vectors", preds_end[0], "\n", "score", maxvals)
             if verbose is not None:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
