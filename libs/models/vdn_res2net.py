@@ -95,7 +95,7 @@ class Bottleneck(nn.Module):
 class Bottle2neck(nn.Module):
     expansion = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None, baseWidth=26, scale=4, stype='normal'):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, baseWidth=26, scale=6, stype='normal'):
         """ Constructor
         Args:
             inplanes: input channel dimensionality
