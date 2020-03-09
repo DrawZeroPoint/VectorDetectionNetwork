@@ -9,8 +9,9 @@ import modules.vdn as vdn
 
 class Test(unittest.TestCase):
 
-    def test_train_default(self):
-        """
+    def test_train(self):
+        """Available backbones: resnet50 (default), resnet34, resnet101, res2net50.
+
         """
         vdn_instance = vdn.VectorDetectionNetwork(train=True, backbone='resnet50')
         vdn_instance.train()

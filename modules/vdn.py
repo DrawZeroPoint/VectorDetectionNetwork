@@ -278,4 +278,4 @@ class VectorDetectionNetwork:
                 vis_util.save_batch_vectormaps(net_input, output_vm,
                                                os.path.join(self.output_dir, f'vmap_{verbose}.jpg'))
 
-            return preds_start, preds_end, maxvals
+            return preds_start, preds_end, maxvals, spent
