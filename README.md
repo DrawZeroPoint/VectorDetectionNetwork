@@ -148,5 +148,15 @@ by a meter detector, with this the provided demo images should contain the whole
  
 The results of the demo will be output to automatically created folder `output/demo`.
 
+# Experiments
+
+You can use the `eval.py` script to perform the experiments conducted in the paper.
+For example, to evaluate the performance of the default configuration (ResNet50 backbone
+with 384x384 input size), just issue `python eval.py` in the root folder. Evaluations 
+of ResNet34, ResNet50, and ResNet101 could be executed in the `master` branch,
+whereas Res2Net50 and Res2Net101 are evaluated in individual branch `res2net50` and
+`res2net101`, respectively.
+
+The evaluation output could be found in `/VDN/output/eval-<backbone>`.
 
    [nv]: <https://github.com/NVIDIA/nvidia-docker>
