@@ -73,7 +73,7 @@ class VectorDetectionNetwork:
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
 
-        self.output_dir = os.path.join(root_dir, 'output/demo')
+        self.output_dir = os.path.join(root_dir, f'output/demo-{backbone}')
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 

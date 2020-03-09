@@ -232,12 +232,12 @@ class PointerDataset(JointsDataset):
         self._write_coco_keypoint_results(oks_nmsed, kp_res_file)
         self._write_coco_keypoint_results(vds_nmsed, vd_res_file)
 
-        kp_info_str = self._do_python_keypoint_eval(kp_res_file, res_folder)
+        kp_info_str = self._do_python_oks_eval(kp_res_file, res_folder)
         vd_info_str = self._do_python_vds_eval(vd_res_file, res_folder)
 
         kp_ap_ar = OrderedDict(kp_info_str)
         vd_ap_ar = OrderedDict(vd_info_str)
-        return kp_ap_ar, vd_ap_ar, kp_ap_ar['AP']
+        return kp_ap_ar, vd_ap_ar, (kp_ap_ar['AP'] + vd_ap_ar['AP']) * 0.5
 
     def get_nmsed(self, kp_preds, all_boxes, img_path):
         kp_preds_list = []
@@ -328,10 +328,8 @@ class PointerDataset(JointsDataset):
 
         return cat_results
 
-    def _do_python_keypoint_eval(self, res_file, res_folder):
+    def _do_python_oks_eval(self, res_file, res_folder):
         coco_dt = self.coco.load_res(res_file)
-        # print('PointerDataset 329 coco dt', coco_dt.anns, coco_dt.cats)
-        # print('PointerDataset 330 coco gt', self.coco.anns, self.coco.cats)
         coco_eval = COCOeval(self.coco, coco_dt, 'keypoints')
         coco_eval.params.useSegm = None
         coco_eval.evaluate()
@@ -343,11 +341,11 @@ class PointerDataset(JointsDataset):
         for ind, name in enumerate(stats_names):
             info_str.append((name, coco_eval.stats[ind]))
 
-        eval_file = os.path.join(res_folder, 'keypoints_%s_results.pkl' % self.image_set)
+        eval_file = os.path.join(res_folder, 'oks_%s_results.pkl' % self.image_set)
 
         with open(eval_file, 'wb') as f:
             pickle.dump(coco_eval, f, pickle.HIGHEST_PROTOCOL)
-        logger.info('=> coco eval results saved to %s' % eval_file)
+        logger.info('=> OKS eval results saved to %s' % eval_file)
 
         return info_str
 

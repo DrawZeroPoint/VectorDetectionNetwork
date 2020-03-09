@@ -253,8 +253,8 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             if isinstance(vds_metric, list):
                 for name_value in vds_metric:
                     writer.add_scalars('valid_vds', dict(name_value), global_steps)
-                else:
-                    writer.add_scalars('valid_vds', dict(vds_metric), global_steps)
+            else:
+                writer.add_scalars('valid_vds', dict(vds_metric), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
