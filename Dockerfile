@@ -22,7 +22,7 @@ ENV PYTHONPATH="$PYTHONPATH:/VDN"
 # Make port available to the world outside this container
 # ------------------------------------------------------------------
 EXPOSE 80
-
+EXPOSE 6006
 
 # ==================================================================
 # Install dependences of OpenCV
