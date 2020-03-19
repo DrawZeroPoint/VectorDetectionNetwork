@@ -69,9 +69,9 @@ class NormRegL1Loss(nn.Module):
         return loss
 
 
-class RegL2Loss(nn.Module):
+class OrientsMSELoss(nn.Module):
     def __init__(self):
-        super(RegL2Loss, self).__init__()
+        super(OrientsMSELoss, self).__init__()
 
     def forward(self, output, target):
         """
@@ -87,7 +87,7 @@ class RegL2Loss(nn.Module):
 class JointsMSELoss(nn.Module):
     def __init__(self, use_target_weight):
         super(JointsMSELoss, self).__init__()
-        self.criterion = nn.MSELoss(size_average=True)
+        self.criterion = nn.MSELoss(reduction='mean')
         self.use_target_weight = use_target_weight
 
     # @torchsnooper.snoop()
@@ -112,6 +112,6 @@ class JointsMSELoss(nn.Module):
             heatmap_pred = heatmaps_pred[j].squeeze()
             heatmap_gt = heatmaps_gt[j].squeeze()
 
-            loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)
+            loss += self.criterion(heatmap_pred, heatmap_gt)
 
         return loss / num_joints
