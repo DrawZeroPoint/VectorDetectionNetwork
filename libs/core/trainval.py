@@ -46,7 +46,12 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
         v_loss = crit_vector(out_vector, target_vectormap)
-        loss = j_loss + (0.001 + epoch * 0.01 / 100) * v_loss
+        # loss = j_loss + (0.001 + epoch * 0.01 / end_epoch) * v_loss
+
+        if epoch < end_epoch / 2:
+            loss = j_loss
+        else:
+            loss = j_loss + 0.01 * v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -80,6 +85,8 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                       speed=input.size(0)/batch_time.val,
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
+            print(f'jloss: {j_loss.item()}, vloss: {v_loss.item()}')
+
             if writer_dict:
                 writer = writer_dict['writer']
                 global_steps = writer_dict['train_global_steps']
@@ -123,7 +130,11 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
 
             j_loss = crit_heatmap(out_hm, target_heatmap)
             v_loss = crit_vector(out_vm, target_vectormap)
-            loss = j_loss + (0.001 + epoch * 0.01 / 100) * v_loss
+
+            if epoch < end_epoch / 2:
+                loss = j_loss
+            else:
+                loss = j_loss + 0.01 * v_loss
 
             num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
@@ -218,6 +229,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                           i, len(val_loader), batch_time=batch_time,
                           loss=losses, acc=acc)
                 logger.info(msg)
+                print(f'jloss: {j_loss.item()}, vloss: {v_loss.item()}')
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                 save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v,
