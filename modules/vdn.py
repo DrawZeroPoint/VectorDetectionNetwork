@@ -183,7 +183,7 @@ class VectorDetectionNetwork:
         logger.info(pprint.pformat(cfgs))
 
         # define loss function (criterion) and optimizer
-        crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
+        crit_heatmap = lib_loss.MSELoss().cuda()
         crit_vector = lib_loss.MSELoss().cuda()
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
