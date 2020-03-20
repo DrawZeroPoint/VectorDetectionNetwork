@@ -69,18 +69,34 @@ class NormRegL1Loss(nn.Module):
         return loss
 
 
-class OrientsMSELoss(nn.Module):
+class MAELoss(nn.Module):
     def __init__(self):
-        super(OrientsMSELoss, self).__init__()
+        super(MAELoss, self).__init__()
+        self.criterion = nn.L1Loss(reduction='mean')
 
     def forward(self, output, target):
         """
 
-        :param output: [b, 2, h, w]
-        :param target: [b, j, 2, h, w]
+        :param output: [b, k, h, w]
+        :param target: [b, k, h, w]
         :return:
         """
-        loss = F.mse_loss(output, target.squeeze(1))
+        loss = self.criterion(output, target)
+        return loss
+
+
+class MSELoss(nn.Module):
+    def __init__(self):
+        super(MSELoss, self).__init__()
+
+    def forward(self, output, target):
+        """
+
+        :param output: [b, k, h, w]
+        :param target: [b, k, h, w]
+        :return:
+        """
+        loss = F.mse_loss(output, target)
         return loss
 
 
