@@ -45,9 +45,10 @@ TRAIN:
   RESUME: false
   OPTIMIZER: 'adam'
   LR: 0.001
-  LR_FACTOR: 0.1
+  LR_FACTOR: 0.5
   LR_STEP:
-  - 120
+  - 50
+  - 100
   - 150
   WD: 0.0001
   GAMMA1: 0.99
