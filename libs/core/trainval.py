@@ -47,7 +47,12 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
         v_loss = crit_vector(out_vector, target_vectormap.squeeze(1))
         # loss = j_loss + (0.001 + epoch * 0.01 / end_epoch) * v_loss
-        loss = j_loss + epoch / end_epoch * v_loss
+        if epoch < 50:
+            loss = j_loss
+        elif 50 <= epoch < 100:
+            loss = j_loss + (epoch - 50) / 50 * v_loss
+        else:
+            loss = j_loss + v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -127,7 +132,14 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             j_loss = crit_heatmap(out_hm, target_heatmap)
             v_loss = crit_vector(out_vm, target_vectormap.squeeze(1))
 
-            loss = j_loss + epoch / end_epoch * v_loss
+            if epoch < 50:
+                loss = j_loss
+            elif 50 <= epoch < 100:
+                loss = j_loss + (epoch - 50) / 50 * v_loss
+            else:
+                loss = j_loss + v_loss
+
+            # loss = j_loss + epoch / end_epoch * v_loss
 
             num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
