@@ -139,7 +139,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             # else:
             #     loss = j_loss + v_loss
 
-            loss = j_loss + epoch / end_epoch * v_loss
+            loss = j_loss + v_loss
 
             num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
