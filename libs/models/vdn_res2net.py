@@ -4,6 +4,8 @@ import logging
 import torch
 import torch.nn as nn
 import math
+from collections import OrderedDict
+
 
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
@@ -196,12 +198,20 @@ class VDNRes2Net(nn.Module):
             extra.NUM_DECONV_KERNELS,
         )
 
-        self.final_layer = nn.Conv2d(
-            in_channels=extra.NUM_DECONV_FILTERS[-1],
+        self.final_layer_hm = nn.Conv2d(
+            in_channels=extra.NUM_DECONV_FILTERS[-1],  # 256
             out_channels=cfg.MODEL.NUM_JOINTS,
-            kernel_size=extra.FINAL_CONV_KERNEL,
+            kernel_size=extra.FINAL_CONV_KERNEL,  # 1
             stride=1,
             padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0
+        )
+
+        self.final_layer_v = nn.Conv2d(
+            in_channels=extra.NUM_DECONV_FILTERS[-1],
+            out_channels=2,
+            kernel_size=3,
+            stride=1,
+            padding=1
         )
 
     def _make_layer(self, block, planes, blocks, stride=1):
@@ -213,9 +223,8 @@ class VDNRes2Net(nn.Module):
                 nn.BatchNorm2d(planes * block.expansion, momentum=BN_MOMENTUM),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample=downsample,
-                            stype='stage', baseWidth=self.baseWidth, scale=self.scale))
+        layers = [block(self.inplanes, planes, stride, downsample=downsample,
+                        stype='stage', baseWidth=self.baseWidth, scale=self.scale)]
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes, baseWidth=self.baseWidth, scale=self.scale))
@@ -232,6 +241,8 @@ class VDNRes2Net(nn.Module):
         elif deconv_kernel == 2:
             padding = 0
             output_padding = 0
+        else:
+            raise NotImplementedError(f'Deconv kernel size {deconv_kernel} is not supported')
 
         return deconv_kernel, padding, output_padding
 
@@ -274,9 +285,11 @@ class VDNRes2Net(nn.Module):
         x = self.layer4(x)
 
         x = self.deconv_layers(x)
-        x = self.final_layer(x)
+        hm = self.final_layer_hm(x)
+        vm = self.final_layer_v(x)
+        vm = vm.tanh()
 
-        return x
+        return hm, vm
 
     def init_weights(self, pretrained=''):
         if os.path.isfile(pretrained):
@@ -294,16 +307,39 @@ class VDNRes2Net(nn.Module):
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
             logger.info('=> init final conv weights from normal distribution')
-            for m in self.final_layer.modules():
+            for m in self.final_layer_hm.modules():
                 if isinstance(m, nn.Conv2d):
                     logger.info('=> init {}.weight as normal(0, 0.001)'.format(name))
                     logger.info('=> init {}.bias as 0'.format(name))
                     nn.init.normal_(m.weight, std=0.001)
                     nn.init.constant_(m.bias, 0)
 
-            pretrained_state_dict = torch.load(pretrained)
+            for m in self.final_layer_v.modules():
+                if isinstance(m, nn.Conv2d):
+                    logger.info('=> init {}.weight as normal(0, 0.001)'.format(name))
+                    logger.info('=> init {}.bias as 0'.format(name))
+                    nn.init.normal_(m.weight, std=0.001)
+                    nn.init.constant_(m.bias, 0)
+
             logger.info('=> loading pretrained model {}'.format(pretrained))
-            self.load_state_dict(pretrained_state_dict, strict=False)
+            checkpoint = torch.load(pretrained)
+            if isinstance(checkpoint, OrderedDict):
+                state_dict = checkpoint
+            elif isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+                state_dict_old = checkpoint['state_dict']
+                state_dict = OrderedDict()
+                # delete 'module.' because it is saved from DataParallel module
+                for key in state_dict_old.keys():
+                    if key.startswith('module.'):
+                        # state_dict[key[7:]] = state_dict[key]
+                        # state_dict.pop(key)
+                        state_dict[key[7:]] = state_dict_old[key]
+                    else:
+                        state_dict[key] = state_dict_old[key]
+            else:
+                raise RuntimeError(
+                    'No state_dict found in checkpoint file {}'.format(pretrained))
+            self.load_state_dict(state_dict, strict=False)
         else:
             logger.info('=> init weights from normal distribution')
             for m in self.modules():
@@ -330,9 +366,7 @@ res2net_spec = {
 
 def get_vdn_res2net(cfg, is_train, **kwargs):
     num_layers = cfg.MODEL.EXTRA.NUM_LAYERS
-
     block_class, layers = res2net_spec[num_layers]
-
     model = VDNRes2Net(block_class, layers, cfg, **kwargs)
 
     if is_train and cfg.MODEL.INIT_WEIGHTS:

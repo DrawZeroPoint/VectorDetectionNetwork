@@ -1,6 +1,6 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/train-34'
-LOG_DIR: '/VDN/logs/train'
+OUTPUT_DIR: '/VDN/output/train-resnet34'
+LOG_DIR: '/VDN/logs/train-resnet34'
 WORKERS: 4
 
 DATASET:
@@ -11,7 +11,7 @@ DATASET:
   ROT_FACTOR: 90
   SCALE_FACTOR: 0.02
 MODEL:
-  NAME: 'vdn_model'  # This name should exist in /VDN/libs/models
+  NAME: 'vdn_model'
   PRETRAINED: '/VDN/weights/pretrained/resnet34-333f7ec4.pth'
   IMAGE_SIZE:
   - 384  # width
@@ -41,15 +41,14 @@ TRAIN:
   BATCH_SIZE: 2
   SHUFFLE: true
   BEGIN_EPOCH: 0
-  END_EPOCH: 200
+  END_EPOCH: 160
   RESUME: false
   OPTIMIZER: 'adam'
   LR: 0.001
   LR_FACTOR: 0.1
   LR_STEP:
   - 100
-  - 150
-  - 180
+  - 140
   WD: 0.0001
   GAMMA1: 0.99
   GAMMA2: 0.0

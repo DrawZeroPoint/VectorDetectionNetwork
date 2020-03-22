@@ -286,9 +286,7 @@ class VDNModel(nn.Module):
                     nn.init.normal_(m.weight, std=0.001)
                     nn.init.constant_(m.bias, 0)
 
-            # pretrained_state_dict = torch.load(pretrained)
             logger.info('=> loading pretrained model {}'.format(pretrained))
-            # self.load_state_dict(pretrained_state_dict, strict=False)
             checkpoint = torch.load(pretrained)
             if isinstance(checkpoint, OrderedDict):
                 state_dict = checkpoint
@@ -308,7 +306,6 @@ class VDNModel(nn.Module):
                     'No state_dict found in checkpoint file {}'.format(pretrained))
             self.load_state_dict(state_dict, strict=False)
         else:
-            logger.error('=> pretrained model dose not exist')
             raise ValueError('pretrained model does not exist')
 
 
