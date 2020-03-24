@@ -47,7 +47,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
         v_loss = crit_vector(out_vector, target_vectormap.squeeze(1))
 
-        loss = 10. * j_loss + epoch / end_epoch * v_loss
+        loss = j_loss + epoch / end_epoch * v_loss
 
         # if epoch < 100:
         #     loss = j_loss + epoch / 100 * v_loss
