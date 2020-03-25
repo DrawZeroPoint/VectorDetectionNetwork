@@ -11,11 +11,7 @@ import modules.vdn as vdn
 class Test(unittest.TestCase):
 
     def test_demo_default(self):
-        """You can change the backbone to resnet34, resnet101, res2net50
-        if those models have been trained.
-
-        """
-        VDN = vdn.VectorDetectionNetwork(backbone='resnet34')
+        VDN = vdn.VectorDetectionNetwork(backbone='resnet18')
 
         demo_data_dir = "./data/demo"
         if not os.path.exists(demo_data_dir):
