@@ -51,7 +51,7 @@ class VectorDetectionNetwork:
     """
     """
 
-    def __init__(self, train=False, backbone='resnet50'):
+    def __init__(self, train=False, backbone='resnet34'):
         if train:
             vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/train.yaml")
         else:
