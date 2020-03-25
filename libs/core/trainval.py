@@ -96,7 +96,6 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
 
 
 def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, epoch, output_dir, writer_dict=None):
-    end_epoch = float(config.TRAIN.END_EPOCH)
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()

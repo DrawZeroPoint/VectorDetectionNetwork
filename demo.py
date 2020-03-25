@@ -15,7 +15,7 @@ class Test(unittest.TestCase):
         if those models have been trained.
 
         """
-        VDN = vdn.VectorDetectionNetwork(backbone='resnet50')
+        VDN = vdn.VectorDetectionNetwork(backbone='resnet34')
 
         demo_data_dir = "./data/demo"
         if not os.path.exists(demo_data_dir):

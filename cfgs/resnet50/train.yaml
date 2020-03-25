@@ -1,6 +1,6 @@
 GPUS: '0'
-OUTPUT_DIR: '/VDN/output/train-resnet34'
-LOG_DIR: '/VDN/logs/train-resnet34'
+OUTPUT_DIR: '/VDN/output/train-resnet50'
+LOG_DIR: '/VDN/logs'
 WORKERS: 4
 
 DATASET:
@@ -12,7 +12,7 @@ DATASET:
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_model'
-  PRETRAINED: '/VDN/weights/pretrained/resnet34-333f7ec4.pth'
+  PRETRAINED: '/VDN/weights/pretrained/resnet50-19c8e357.pth'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height
@@ -34,7 +34,7 @@ MODEL:
     - 4
     - 4
     - 4
-    NUM_LAYERS: 34
+    NUM_LAYERS: 50
 LOSS:
   USE_TARGET_WEIGHT: true
 TRAIN:
