@@ -11,7 +11,7 @@ import modules.vdn as vdn
 class Test(unittest.TestCase):
 
     def test_demo_default(self):
-        """You can change the backbone to resnet34, resnet101, res2net50
+        """You can change the backbone to resnet34, resnet18, res2net50
         if those models have been trained.
 
         """
