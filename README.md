@@ -11,11 +11,8 @@ Deep learning framework: PyTorch
 
 ## Hardware
 
-We use a PC to conduct the training and evaluation of the VDN model, and the hardware settings are:
+Make sure the PC is with 8 GB or more GRAM.
 
-`CPU Intel i5-9600K, RAM 16GB, GPU NVIDIA GTX1070Ti, SSD 512GB.`
-
-Since the GTX10 series GPU is no longer in production, you could turn to newer Nvidia graphic cards.
 Please make sure you have the correct version of the Nvidia driver installed, and that is compatible with your card.
 
 ## Software
@@ -144,18 +141,18 @@ We provide the model trained by us: [download]()
 
 You can put your image into `VDN/data/demo`, and the algorithm will automatically find all images within the folder
 and detect pointers in these images if any analog meters exist. Please note that VDN takes the image patches output
-by a meter detector, with this the provided demo images should contain the whole dial face but not much background nor only a part of the meters.
+by a meter detector, with this the provided demo images should contain the whole dial face but not much background 
+nor only a part of the meters.
  
 The results of the demo will be output to automatically created folder `output/demo`.
 
 # Experiments
 
 You can use the `eval.py` script to perform the experiments conducted in the paper.
-For example, to evaluate the performance of the default configuration (ResNet50 backbone
+For example, to evaluate the performance of the default configuration (ResNet34 backbone
 with 384x384 input size), just issue `python eval.py` in the root folder. Evaluations 
-of ResNet34, ResNet50, and ResNet101 could be executed in the `master` branch,
-whereas Res2Net50 and Res2Net101 are evaluated in individual branch `res2net50` and
-`res2net101`, respectively.
+of ResNet18 and ResNet50 could be executed in the `master` branch,
+whereas Res2Net50 is evaluated in individual branch `res2net50`.
 
 The evaluation output could be found in `/VDN/output/eval-<backbone>`.
 
