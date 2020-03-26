@@ -19,6 +19,8 @@ import torch.utils.data
 import torch.utils.data.distributed
 import torchvision.transforms as transforms
 
+from torch.utils.tensorboard import SummaryWriter
+
 import libs.core.config as lib_config
 from libs.core.config import get_model_name
 
@@ -49,11 +51,11 @@ class VectorDetectionNetwork:
     """
     """
 
-    def __init__(self, train=False):
+    def __init__(self, train=False, backbone='resnet50'):
         if train:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/train.yaml")
+            vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/train.yaml")
         else:
-            vdn_config = os.path.join(root_dir, "cfgs/resnet50/eval.yaml")
+            vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/eval.yaml")
 
         lib_config.update_config(vdn_config)
 
@@ -71,7 +73,7 @@ class VectorDetectionNetwork:
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
 
-        self.output_dir = os.path.join(root_dir, 'output/demo')
+        self.output_dir = os.path.join(root_dir, f'output/demo-{backbone}')
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
@@ -87,9 +89,17 @@ class VectorDetectionNetwork:
         this_dir = os.path.dirname(__file__)
         shutil.copy2(os.path.join(this_dir, '../libs/models', cfgs.MODEL.NAME + '.py'), final_output_dir)
 
+        writer_dict = {
+            'writer': SummaryWriter(log_dir=tb_log_dir),
+            'train_global_steps': 0,
+            'valid_global_steps': 0,
+        }
+
         # define loss function (criterion) and optimizer
-        crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
-        crit_vector = lib_loss.RegL2Loss().cuda()
+        # crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
+        # crit_vector = lib_loss.OrientsMSELoss().cuda()
+        crit_heatmap = lib_loss.MSELoss().cuda()
+        crit_vector = lib_loss.MSELoss().cuda()
 
         optimizer = lib_util.get_optimizer(cfgs, self.model)
 
@@ -139,14 +149,14 @@ class VectorDetectionNetwork:
         for epoch in range(cfgs.TRAIN.BEGIN_EPOCH, cfgs.TRAIN.END_EPOCH):
             # train for one epoch
             lib_function.train(cfgs, train_loader, self.model, crit_heatmap, crit_vector,
-                               optimizer, epoch, final_output_dir)
+                               optimizer, epoch, final_output_dir, writer_dict)
 
             #  In PyTorch 1.1.0 and later, you should call optimizer.step() before lr_scheduler.step().
             lr_scheduler.step()
 
             # evaluate on validation set
             perf_indicator = lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                                                   crit_heatmap, crit_vector, final_output_dir, epoch)
+                                                   crit_heatmap, crit_vector, epoch, final_output_dir, writer_dict)
 
             if perf_indicator > best_perf:
                 best_perf = perf_indicator
@@ -154,7 +164,6 @@ class VectorDetectionNetwork:
             else:
                 is_best_model = False
 
-            logger.info('=> saving checkpoint to {}'.format(final_output_dir))
             lib_util.save_checkpoint({
                 'epoch': epoch + 1,
                 'model': get_model_name(cfgs),
@@ -174,8 +183,8 @@ class VectorDetectionNetwork:
         logger.info(pprint.pformat(cfgs))
 
         # define loss function (criterion) and optimizer
-        crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
-        crit_vector = lib_loss.RegL2Loss().cuda()
+        crit_heatmap = lib_loss.MSELoss().cuda()
+        crit_vector = lib_loss.MSELoss().cuda()
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])
@@ -201,9 +210,8 @@ class VectorDetectionNetwork:
 
         # evaluate on validation or test set (depending on the cfg)
         lib_function.validate(cfgs, valid_loader, valid_dataset, self.model,
-                              crit_heatmap, crit_vector, final_output_dir, 200)
+                              crit_heatmap, crit_vector, cfgs.TRAIN.END_EPOCH, final_output_dir)
 
-    # @torchsnooper.snoop()
     def get_vectors(self, roi_image: np.ndarray, verbose: Optional[str] = None):
         """Given roi_image of pointer-type meter dial face, return vectors represented by 2 points [[[ps_x, ps_y],
         [pe_x, pe_y]], ...]. Here ps is for start point, and pe is for end point.
@@ -247,16 +255,13 @@ class VectorDetectionNetwork:
                                                                  np.asarray([center]), np.asarray([shape]))
 
             spent = time.time() - start
-            print(spent)
+            print('inference time (s): ', spent)
 
             # squeeze the batch and joint dims
             preds_start = np.squeeze(preds_start, (0, 1))
             preds_end = np.squeeze(preds_end, (0, 1))
             maxvals = np.squeeze(maxvals, (0, 1))
-            # print('pred shape', preds_start.shape)
-            # print('maxvals shape', maxvals.shape)
 
-            # print("points", preds_start[0], "vectors", preds_end[0], "\n", "score", maxvals)
             if verbose is not None:
                 roi_pil = vis_util.cv_img_to_pil(roi_image)
                 draw = ImageDraw.Draw(roi_pil)
@@ -275,4 +280,4 @@ class VectorDetectionNetwork:
                 vis_util.save_batch_vectormaps(net_input, output_vm,
                                                os.path.join(self.output_dir, f'vmap_{verbose}.jpg'))
 
-            return preds_start, preds_end, maxvals
+            return preds_start, preds_end, maxvals, spent

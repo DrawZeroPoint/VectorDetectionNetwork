@@ -69,25 +69,41 @@ class NormRegL1Loss(nn.Module):
         return loss
 
 
-class RegL2Loss(nn.Module):
+class MAELoss(nn.Module):
     def __init__(self):
-        super(RegL2Loss, self).__init__()
+        super(MAELoss, self).__init__()
+        self.criterion = nn.L1Loss(reduction='mean')
 
     def forward(self, output, target):
         """
 
-        :param output: [b, 2, h, w]
-        :param target: [b, j, 2, h, w]
+        :param output: [b, k, h, w]
+        :param target: [b, k, h, w]
         :return:
         """
-        loss = F.mse_loss(output, target.squeeze(1))
+        loss = self.criterion(output, target)
+        return loss
+
+
+class MSELoss(nn.Module):
+    def __init__(self):
+        super(MSELoss, self).__init__()
+
+    def forward(self, output, target):
+        """
+
+        :param output: [b, k, h, w]
+        :param target: [b, k, h, w]
+        :return:
+        """
+        loss = F.mse_loss(output, target)
         return loss
 
 
 class JointsMSELoss(nn.Module):
     def __init__(self, use_target_weight):
         super(JointsMSELoss, self).__init__()
-        self.criterion = nn.MSELoss(size_average=True)
+        self.criterion = nn.MSELoss(reduction='mean')
         self.use_target_weight = use_target_weight
 
     # @torchsnooper.snoop()
@@ -112,6 +128,6 @@ class JointsMSELoss(nn.Module):
             heatmap_pred = heatmaps_pred[j].squeeze()
             heatmap_gt = heatmaps_gt[j].squeeze()
 
-            loss += 0.5 * self.criterion(heatmap_pred, heatmap_gt)
+            loss += self.criterion(heatmap_pred, heatmap_gt)
 
         return loss / num_joints

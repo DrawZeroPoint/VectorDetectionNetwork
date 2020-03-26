@@ -18,8 +18,8 @@ from libs.utils.utils import vector_components_to_deg
 logger = logging.getLogger(__name__)
 
 
-def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epoch, output_dir):
-    writer_dict = None
+def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epoch, output_dir, writer_dict=None):
+    end_epoch = float(config.TRAIN.END_EPOCH)
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -45,8 +45,9 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
         #       f'tgt_indexes {tgt_indexes.shape}')
 
         j_loss = crit_heatmap(out_heatmap, target_heatmap)
-        v_loss = crit_vector(out_vector, target_vectormap)
-        loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
+        v_loss = crit_vector(out_vector, target_vectormap.squeeze(1))
+
+        loss = j_loss + epoch / end_epoch * v_loss
 
         # compute gradient and do update step
         optimizer.zero_grad()
@@ -80,6 +81,8 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                       speed=input.size(0)/batch_time.val,
                       data_time=data_time, loss=losses, acc=acc)
             logger.info(msg)
+            print(f'jloss: {j_loss.item()}, vloss: {v_loss.item()}')
+
             if writer_dict:
                 writer = writer_dict['writer']
                 global_steps = writer_dict['train_global_steps']
@@ -92,8 +95,7 @@ def train(config, train_loader, model, crit_heatmap, crit_vector, optimizer, epo
                               out_heatmap, out_vector, prefix)
 
 
-def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, output_dir, epoch):
-    writer_dict = None
+def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, epoch, output_dir, writer_dict=None):
     batch_time = AverageMeter()
     losses = AverageMeter()
     acc = AverageMeter()
@@ -122,8 +124,9 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             target_vectormap = target_vectormap.cuda(non_blocking=True)
 
             j_loss = crit_heatmap(out_hm, target_heatmap)
-            v_loss = crit_vector(out_vm, target_vectormap)
-            loss = j_loss + (0.001 + epoch * 0.01 / 200.) * v_loss
+            v_loss = crit_vector(out_vm, target_vectormap.squeeze(1))
+
+            loss = j_loss + v_loss
 
             num_images = input.size(0)  # aka, batch size
             losses.update(loss.item(), num_images)
@@ -218,6 +221,7 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
                           i, len(val_loader), batch_time=batch_time,
                           loss=losses, acc=acc)
                 logger.info(msg)
+                print(f'jloss: {j_loss.item()}, vloss: {v_loss.item()}')
 
                 prefix = '{}_{}'.format(os.path.join(output_dir, 'val'), i)
                 save_debug_images(config, input, meta, target_heatmap, pred_j, pred_v,
@@ -247,14 +251,14 @@ def validate(config, val_loader, val_dataset, model, crit_heatmap, crit_vector, 
             writer.add_scalar('valid_acc', acc.avg, global_steps)
             if isinstance(oks_metric, list):
                 for name_value in oks_metric:
-                    writer.add_scalars('valid', dict(name_value), global_steps)
+                    writer.add_scalars('valid_oks', dict(name_value), global_steps)
             else:
-                writer.add_scalars('valid', dict(oks_metric), global_steps)
+                writer.add_scalars('valid_oks', dict(oks_metric), global_steps)
             if isinstance(vds_metric, list):
                 for name_value in vds_metric:
-                    writer.add_scalars('vds', dict(name_value), global_steps)
-                else:
-                    writer.add_scalars('vds', dict(vds_metric), global_steps)
+                    writer.add_scalars('valid_vds', dict(name_value), global_steps)
+            else:
+                writer.add_scalars('valid_vds', dict(vds_metric), global_steps)
             writer_dict['valid_global_steps'] = global_steps + 1
 
     return perf_indicator
