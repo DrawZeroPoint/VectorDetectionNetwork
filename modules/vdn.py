@@ -33,7 +33,7 @@ import libs.utils.utils as lib_util
 from libs.utils.transforms import get_affine_transform
 
 import libs.dataset as lib_dataset
-import libs.models.vdn_model as vdn_model
+import libs.models.vdn_res2net as vdn_model
 
 import utils.vis.util as vis_util
 from PIL import ImageDraw
@@ -51,7 +51,7 @@ class VectorDetectionNetwork:
     """
     """
 
-    def __init__(self, train=False, backbone='resnet50'):
+    def __init__(self, train=False, backbone='res2net50'):
         if train:
             vdn_config = os.path.join(root_dir, f"cfgs/{backbone}/train.yaml")
         else:
@@ -64,11 +64,11 @@ class VectorDetectionNetwork:
         torch.backends.cudnn.enabled = lib_config.config.CUDNN.ENABLED
 
         if not train:
-            model = vdn_model.get_vdn_resnet(lib_config.config, is_train=False)
+            model = vdn_model.get_vdn_res2net(lib_config.config, is_train=False)
             model_path = lib_config.config.MODEL.PRETRAINED
             model.load_state_dict({k.replace('module.', ''): v for k, v in torch.load(model_path).items()})
         else:
-            model = vdn_model.get_vdn_resnet(lib_config.config, is_train=True)
+            model = vdn_model.get_vdn_res2net(lib_config.config, is_train=True)
 
         self.gpus = [int(i) for i in lib_config.config.GPUS.split(',')]
         self.model = torch.nn.DataParallel(model, device_ids=self.gpus).cuda()
@@ -96,8 +96,6 @@ class VectorDetectionNetwork:
         }
 
         # define loss function (criterion) and optimizer
-        # crit_heatmap = lib_loss.JointsMSELoss(use_target_weight=cfgs.LOSS.USE_TARGET_WEIGHT).cuda()
-        # crit_vector = lib_loss.OrientsMSELoss().cuda()
         crit_heatmap = lib_loss.MSELoss().cuda()
         crit_vector = lib_loss.MSELoss().cuda()
 

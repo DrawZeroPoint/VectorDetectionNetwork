@@ -1,6 +1,6 @@
 GPUS: '0'
 OUTPUT_DIR: '/VDN/output/eval-res2net50'
-LOG_DIR: '/VDN/logs/eval'
+LOG_DIR: '/VDN/logs'
 WORKERS: 4
 
 DATASET:

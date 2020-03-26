@@ -11,7 +11,7 @@ import modules.vdn as vdn
 class Test(unittest.TestCase):
 
     def test_demo_default(self):
-        VDN = vdn.VectorDetectionNetwork(backbone='resnet50')
+        VDN = vdn.VectorDetectionNetwork(backbone='res2net50')
 
         demo_data_dir = "./data/demo"
         if not os.path.exists(demo_data_dir):

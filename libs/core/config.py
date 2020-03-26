@@ -47,7 +47,7 @@ config.MODEL.IMAGE_SIZE = [256, 256]
 config.MODEL.EXTRA = MODEL_EXTRAS[config.MODEL.NAME]
 config.MODEL.STYLE = 'pytorch'
 
-config.MODEL.SCALE = 6
+config.MODEL.SCALE = 4
 config.MODEL.BASEWIDTH = 26
 
 config.LOSS = edict()
