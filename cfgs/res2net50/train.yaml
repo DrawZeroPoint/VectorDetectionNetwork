@@ -12,7 +12,7 @@ DATASET:
   SCALE_FACTOR: 0.02
 MODEL:
   NAME: 'vdn_res2net'  # This name should exist in /VDN/libs/models
-  PRETRAINED: '/VDN/weights/pretrained/res2net50_26w_4s-06e79181.pth'
+  PRETRAINED: '/VDN/weights/pretrained/res2net50_v1b_26w_4s-3cf99910.pth'
   IMAGE_SIZE:
   - 384  # width
   - 384  # height

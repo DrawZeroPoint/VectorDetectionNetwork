@@ -181,10 +181,17 @@ class VDNRes2Net(nn.Module):
         self.deconv_with_bias = extra.DECONV_WITH_BIAS
 
         super(VDNRes2Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
-        self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
-        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, 3, 2, 1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, 3, 1, 1, bias=False)
+        )
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
@@ -218,9 +225,11 @@ class VDNRes2Net(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
+                nn.AvgPool2d(kernel_size=stride, stride=stride,
+                    ceil_mode=True, count_include_pad=False),
                 nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion, momentum=BN_MOMENTUM),
+                    kernel_size=1, stride=1, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
             )
 
         layers = [block(self.inplanes, planes, stride, downsample=downsample,
@@ -344,8 +353,7 @@ class VDNRes2Net(nn.Module):
             logger.info('=> init weights from normal distribution')
             for m in self.modules():
                 if isinstance(m, nn.Conv2d):
-                    nn.init.normal_(m.weight, std=0.001)
-                    # nn.init.constant_(m.bias, 0)
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 elif isinstance(m, nn.BatchNorm2d):
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)
@@ -353,7 +361,6 @@ class VDNRes2Net(nn.Module):
                     nn.init.normal_(m.weight, std=0.001)
                     if self.deconv_with_bias:
                         nn.init.constant_(m.bias, 0)
-
 
 res2net_spec = {
     18: (Bottle2neck, [2, 2, 2, 2]),
