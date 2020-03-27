@@ -114,7 +114,26 @@ class JointsDataset(Dataset):
             s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
             r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.5 else 0
 
-        # For ablation test
+        # For input variation test
+
+        # mask_sz = self.sigma + 1
+        # mask = np.zeros((3, mask_sz, mask_sz))
+        # tips = joints_xyv[..., 0:2]
+        # tails = joints_xyv[..., 2:4]
+        # Apply mask on tips
+        # for n in range(self.num_joints):
+        #     for k in range(joints_xyv.shape[1]):
+        #         tip_x = tips[n][k][0]
+        #         tip_y = tips[n][k][1]
+        #         input_numpy[n][tip_x-self.sigma:tip_x+self.sigma, tip_y-self.sigma:tip_y+self.sigma] = mask
+        # Apply mask on tails
+        # for n in range(self.num_joints):
+        #     for k in range(joints_xyv.shape[1]):
+        #         tail_x = tails[n][k][0]
+        #         tail_y = tails[n][k][1]
+        #         input_numpy[n][tail_x-self.sigma:tail_x+self.sigma,
+        #                        tail_y-self.sigma:tail_y+self.sigma] = mask
+        # Apply different scales
         # s = 0.5
         # s = 0.75
         # s = 1.25
@@ -158,7 +177,7 @@ class JointsDataset(Dataset):
     def generate_target(self, joints_xyv: np.ndarray):
         """Get target heatmap and vectormap from joint labels.
 
-        :param joints_xyv: [num_joints, k, 5], k is the object number; 5 is for [head_x, head_y, tail_x, tail_y, vis]
+        :param joints_xyv: [num_joints, k, 5], k is the object number; 5 is for [tip_x, tip_y, tail_x, tail_y, vis]
         :return: target_heatmap: [num_joints, h, w]
                  target_vectormap: [num_joints, 2, h, w]; 2 for (vx, vy) ∈ [-1, 1]
         """
