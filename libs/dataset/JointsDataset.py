@@ -114,6 +114,12 @@ class JointsDataset(Dataset):
             s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
             r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.5 else 0
 
+        # For ablation test
+        # s = 0.5
+        # s = 0.75
+        # s = 1.25
+        # s = 1.5
+
         trans = get_affine_transform(c, s, r, self.image_size)
         input_t = cv2.warpAffine(input_numpy, trans, (int(self.image_size[0]), int(self.image_size[1])),
                                  flags=cv2.INTER_LINEAR)
