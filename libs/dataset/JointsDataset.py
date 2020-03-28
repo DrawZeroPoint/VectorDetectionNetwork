@@ -114,30 +114,9 @@ class JointsDataset(Dataset):
             s = s * np.clip(np.random.randn() * sf + 1, 1 - sf, 1 + sf)
             r = np.clip(np.random.randn() * rf, -rf * 2, rf * 2) if random.random() <= 0.5 else 0
 
-        # For input variation test
-
-        # mask_sz = self.sigma + 1
-        # mask = np.zeros((3, mask_sz, mask_sz))
-        # tips = joints_xyv[..., 0:2]
-        # tails = joints_xyv[..., 2:4]
-        # Apply mask on tips
-        # for n in range(self.num_joints):
-        #     for k in range(joints_xyv.shape[1]):
-        #         tip_x = tips[n][k][0]
-        #         tip_y = tips[n][k][1]
-        #         input_numpy[n][tip_x-self.sigma:tip_x+self.sigma, tip_y-self.sigma:tip_y+self.sigma] = mask
-        # Apply mask on tails
-        # for n in range(self.num_joints):
-        #     for k in range(joints_xyv.shape[1]):
-        #         tail_x = tails[n][k][0]
-        #         tail_y = tails[n][k][1]
-        #         input_numpy[n][tail_x-self.sigma:tail_x+self.sigma,
-        #                        tail_y-self.sigma:tail_y+self.sigma] = mask
-        # Apply different scales
-        # s = 0.5
-        # s = 0.75
-        # s = 1.25
-        # s = 1.5
+        # For ablation test 1
+        # Apply different scales 0.5:1.75:0.25
+        # s = 1.75 * s
 
         trans = get_affine_transform(c, s, r, self.image_size)
         input_t = cv2.warpAffine(input_numpy, trans, (int(self.image_size[0]), int(self.image_size[1])),
@@ -155,6 +134,19 @@ class JointsDataset(Dataset):
                 if joints_xyv[n][k][4] > 0:
                     joints_xyv[n, k, 0:2] = affine_transform(joints_xyv[n, k, 0:2], trans)
                     joints_xyv[n, k, 2:4] = affine_transform(joints_xyv[n, k, 2:4], trans)
+
+        # For ablation test 2, apply mask on pointer tips or tails
+        # mask_sz = 3 * self.sigma
+        # tips = joints_xyv[..., 0:2]
+        # tails = joints_xyv[..., 2:4]
+        # for n in range(self.num_joints):
+        #     for k in range(joints_xyv.shape[1]):
+        #         x = tips[n][k][0]
+        #         y = tips[n][k][1]
+        #         try:
+        #             input_t[:, y-mask_sz:y+mask_sz, x-mask_sz:x+mask_sz] = 0
+        #         except ValueError:
+        #             pass
 
         target_heatmap, target_vectormap = self.generate_target(joints_xyv)
 
@@ -224,7 +216,10 @@ class JointsDataset(Dataset):
                 # determine the heat value of the pixel affected by multiple peaks to be the maximum value
                 prev_val = target_heatmap[n][img_y[0]:img_y[1], img_x[0]:img_x[1]]
                 curr_val = g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
-                max_val = np.maximum(prev_val, curr_val)
+                try:
+                    max_val = np.maximum(prev_val, curr_val)
+                except ValueError:
+                    continue
                 target_heatmap[n][img_y[0]:img_y[1], img_x[0]:img_x[1]] = max_val
 
                 dx = head_x - tail_x
