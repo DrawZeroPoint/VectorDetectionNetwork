@@ -1,10 +1,15 @@
 # Welcome
 
-This is the codebase of the paper titled "Vector Detection Network: Pointer Detector for Robots Reading Analog Meters in the Wild".
-We assume you download it with `git clone `, and the code folder `/VDN` is located in `~`.
+This is the codebase of the [paper](https://ieeexplore.ieee.org/document/9526566) 
+
+Z. Dong, Y. Gao, Y. Yan and F. Chen, "Vector Detection Network: An Application Study on Robots Reading Analog Meters in the Wild," in IEEE Transactions on Artificial Intelligence, vol. 2, no. 5, pp. 394-403, Oct. 2021, doi: 10.1109/TAI.2021.3105936.
+
+We assume you download it with `git clone `, and the code folder `VDN/` (or other names you prefer) is located in `~`.
 
 OS: Ubuntu 16.04 or 18.04
+
 Language: Python 3.6+
+
 Deep learning framework: PyTorch
 
 # Prerequisites
@@ -13,7 +18,7 @@ Deep learning framework: PyTorch
 
 Make sure the PC is with 8 GB or more GRAM.
 
-Please make sure you have the correct version of the Nvidia driver installed, and that is compatible with your card.
+Please make sure you have the correct version of the Nvidia driver installed, and that is compatible with your GPU card.
 
 ## Software
 
@@ -105,8 +110,23 @@ vdn_compile
 
 # The Pointer-10K dataset
 
-The Pointer-10K dataset referred to in our paper is publicly available for non-commercial usage. 
-If you are interested in the data, please contact us via email. The address will be released afterward. 
+Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
+
+This work is licensed under a
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License][cc-by-nc-sa].
+
+[![CC BY-NC-SA 4.0][cc-by-nc-sa-image]][cc-by-nc-sa]
+
+[cc-by-nc-sa]: http://creativecommons.org/licenses/by-nc-sa/4.0/
+[cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+[cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
+
+
+The Pointer-10K dataset referred in our paper is publicly available for non-commercial usage. 
+We adopt the CC BY-NC-SA 4.0 license, by which you can remix, adapt, and build upon this work non-commercially, 
+as long as you credit this work and license your new creations under the identical terms.
+
+Download the dataset here: [BaiduDisk](https://pan.baidu.com/s/1R1iZAqKJ2V656EW0RSM3Mg) password: p10k
 
 
 # Basic Training
@@ -155,5 +175,23 @@ of ResNet18 and ResNet50 could be executed in the `master` branch,
 whereas Res2Net50 is evaluated in individual branch `res2net50`.
 
 The evaluation output could be found in `/VDN/output/eval-<backbone>`.
+
+# Footnotes
+
+If you use any contents in this work, please kindly consider citing:
+
+```
+@ARTICLE{
+  9526566,  
+  author={Dong, Zhipeng and Gao, Yi and Yan, Yunhui and Chen, Fei},  
+  journal={IEEE Transactions on Artificial Intelligence},   
+  title={Vector Detection Network: An Application Study on Robots Reading Analog Meters in the Wild},   
+  year={2021},  
+  volume={2},  
+  number={5},  
+  pages={394-403},  
+  doi={10.1109/TAI.2021.3105936}
+}
+```
 
    [nv]: <https://github.com/NVIDIA/nvidia-docker>
